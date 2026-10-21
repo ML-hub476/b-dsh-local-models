@@ -213,8 +213,41 @@ export function paramsOf(repo) {
   return matches[matches.length - 1].replace(/\s+/g, '')
 }
 
+/**
+ * Three downloads worth offering, one word each.
+ *
+ * Quality  — the largest file that still runs comfortably here.
+ * Balanced — the Q4 family, the usual sweet spot.
+ * Compact  — the smallest file that is still worth running.
+ */
+export function suggestionsFor(files, budgetBytes) {
+  if (!Array.isArray(files) || files.length === 0) return []
+  const budget = Number(budgetBytes) || 0
+  const fits = (file) => budget <= 0 || file.size * 1.2 + 1.5e9 <= budget * 0.9
+  const bySize = [...files].sort((a, b) => a.size - b.size)
+  const isBalanced = (name) => /Q4_K_M|Q4_K_XL|Q4_0|UD-Q4/i.test(name)
+  const isCompact = (name) => /Q3_K|IQ3|Q3_K_XL/i.test(name)
+
+  const balanced = files.find((file) => isBalanced(file.name)) ?? bySize[Math.floor(bySize.length / 2)]
+  const quality = [...files].filter(fits).sort((a, b) => b.size - a.size)[0] ?? balanced
+  const compact = bySize.find((file) => isCompact(file.name)) ?? bySize[0]
+
+  const picked = []
+  const seen = new Set()
+  for (const [label, file] of [
+    ['Quality', quality],
+    ['Balanced', balanced],
+    ['Compact', compact],
+  ]) {
+    if (file === undefined || file === null || seen.has(file.name)) continue
+    seen.add(file.name)
+    picked.push({ label, name: file.name, size: file.size })
+  }
+  return picked
+}
+
 /** Everything the detail page shows, in one request. */
-export async function modelDetail(repo) {
+export async function modelDetail(repo, budgetBytes) {
   const [files, meta] = await Promise.all([
     listFiles(repo),
     fetch(`${HF}/api/models/${String(repo).split('/').map(encodeURIComponent).join('/')}`,
@@ -234,6 +267,7 @@ export async function modelDetail(repo) {
     arch: archTag ?? String(repo).split('/')[0].toLowerCase(),
     format: 'GGUF',
     domain: files.capabilities.includes('vision') ? 'vlm' : 'llm',
+    suggestions: suggestionsFor(files.files, budgetBytes),
     description: cardText(readme),
   }
 }

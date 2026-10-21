@@ -406,7 +406,7 @@ export function apply(ctx, config) {
         return sendJson(response, 200, { items: await searchModels(url.searchParams.get('q') ?? '') })
       }
       if (method === 'GET' && path === '/hub/detail') {
-        return sendJson(response, 200, await modelDetail(url.searchParams.get('repo') ?? ''))
+        return sendJson(response, 200, await modelDetail(url.searchParams.get('repo') ?? '', os.totalmem()))
       }
       if (method === 'GET' && path === '/hub/files') {
         return sendJson(response, 200, await listFiles(url.searchParams.get('repo') ?? ''))

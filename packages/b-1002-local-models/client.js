@@ -234,6 +234,7 @@ window.__ModuleLoader__.load({
       .dlm-spec { padding: 8px 10px; border-radius: 8px; background: var(--dsw-alias-bg-base); }
       .dlm-spec-key { font-size: 10.5px; letter-spacing: 0.03em; text-transform: uppercase; color: var(--dsw-alias-label-secondary); }
       .dlm-spec-value { font-size: 12.5px; line-height: 1.4; }
+      .dlm-pick-label { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: 5px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 16%, transparent); color: var(--dsw-alias-brand-primary); font-size: 11px; font-weight: 600; line-height: 18px; }
       .dlm-readme { padding: 10px 12px; border-radius: 9px; background: var(--dsw-alias-bg-base); }
       .dlm-readme-text { font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-secondary); white-space: pre-wrap; max-height: 260px; overflow: auto; }
       .dlm-select { padding: 4px 8px; border-radius: 7px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; font-size: 11.5px; text-transform: none; letter-spacing: 0; }
@@ -545,19 +546,35 @@ window.__ModuleLoader__.load({
                 h('span', { className: `dlm-fit dlm-fit-${fit.level}` }, fit.label),
                 h('span', { className: 'dlm-quiet', style: { marginLeft: '8px' } }, fit.sentence),
               ),
-          h('div', { className: 'dlm-section-title', style: { marginTop: '4px' } }, h('span', null, `Download options (${model.files.length})`)),
-          model.files.slice(0, 1).map((file) =>
-            h(
+          h('div', { className: 'dlm-section-title', style: { marginTop: '4px' } }, h('span', null, 'Suggested downloads')),
+          (Array.isArray(model.suggestions) ? model.suggestions : []).map((pick) => {
+            const pickFit = fitOf(pick.size, system?.totalMemoryBytes, t)
+            return h(
               'div',
-              { className: 'dlm-row', key: file.name },
-              h('div', { className: 'dlm-row-main' }, h('div', { className: 'dlm-file-name', style: { fontWeight: 600 } }, file.name), h('div', { className: 'dlm-meta' }, formatBytes(file.size) || t('sizeUnknown'))),
+              { className: 'dlm-row dlm-pick', key: pick.name },
+              h(
+                'div',
+                { className: 'dlm-row-main' },
+                h(
+                  'div',
+                  { className: 'dlm-name' },
+                  h('span', { className: 'dlm-pick-label' }, pick.label),
+                  pick.name,
+                  pickFit === null ? null : h('span', { className: `dlm-fit dlm-fit-${pickFit.level}` }, pickFit.label),
+                ),
+                h('div', { className: 'dlm-meta' }, formatBytes(pick.size) || t('sizeUnknown')),
+              ),
               h(
                 'div',
                 { className: 'dlm-actions' },
-                h('button', { type: 'button', className: 'dlm-btn dlm-btn-primary', disabled: downloading || pending !== '', onClick: () => void downloadFile(model.repo, file.name) }, t('download')),
+                h(
+                  'button',
+                  { type: 'button', className: 'dlm-btn dlm-btn-primary', disabled: downloading || pending !== '', onClick: () => void downloadFile(model.repo, pick.name) },
+                  t('download'),
+                ),
               ),
-            ),
-          ),
+            )
+          }),
           model.files.length > 1
             ? h(
                 'details',
@@ -566,7 +583,7 @@ window.__ModuleLoader__.load({
                 h(
                   'div',
                   { style: { marginTop: '8px' } },
-                  model.files.slice(1).map((file) =>
+                  model.files.map((file) =>
                     h(
                       'div',
                       { className: 'dlm-row', key: file.name },
