@@ -286,6 +286,7 @@ window.__ModuleLoader__.load({
       const [pending, setPending] = useState('')
       const [dismissed, setDismissed] = useState(0)
       const [open, setOpen] = useState('')
+      const [engine, setEngine] = useState(null)
 
       const running = state?.job?.status === 'running'
       const totalMemoryBytes = state?.system?.totalMemoryBytes ?? 0
@@ -312,6 +313,13 @@ window.__ModuleLoader__.load({
             setError('')
           } catch (failure) {
             if (alive) setError(failure.message)
+          }
+          try {
+            const response = await fetch('/local-engine/state', { headers: { 'x-dsh-local-engine': '1' } })
+            if (!alive) return
+            setEngine(response.ok ? await response.json() : null)
+          } catch {
+            if (alive) setEngine(null)
           }
         }
         void load()
@@ -413,6 +421,67 @@ window.__ModuleLoader__.load({
             ),
           typeof description === 'string' && description.length > 0 ? h('div', { className: 'dlm-details-text' }, description) : null,
         )
+
+      /** B-1001 has no window of its own, so the card is where it is visible. */
+      const engineAction = async (action) => {
+        try {
+          await fetch(`/local-engine/${action}`, { method: 'POST', headers: { 'x-dsh-local-engine': '1' } })
+        } catch (failure) {
+          setError(String(failure?.message ?? failure))
+        }
+        await refresh()
+      }
+
+      const enginePanel = () => {
+        if (engine === null) return null
+        const isRunning = engine.status === 'running'
+        return h(
+          'div',
+          { className: 'dlm-note' + (isRunning ? '' : ' dlm-note-warn') },
+          h(
+            'div',
+            { className: 'dlm-job-head' },
+            h('span', null, h('span', { className: 'dlm-code' }, 'B-1001'), 'Your own engine'),
+            h(
+              'span',
+              { className: 'dlm-status' },
+              h('span', { className: isRunning ? 'dlm-dot dlm-dot-ok' : 'dlm-dot dlm-dot-bad' }),
+              isRunning ? 'Running' : engine.status,
+            ),
+          ),
+          h(
+            'div',
+            { className: 'dlm-quiet', style: { marginTop: '4px' } },
+            isRunning
+              ? `Running ${engine.model} on port ${engine.port}. This model needs no Ollama. It is listed in the model menu as “Local (built-in)”.`
+              : engine.error || 'The engine is not running.',
+          ),
+          h(
+            'div',
+            { style: { display: 'flex', gap: '8px', marginTop: '8px' } },
+            h(
+              'button',
+              { type: 'button', className: 'dlm-btn', onClick: () => void engineAction(isRunning ? 'stop' : 'start') },
+              isRunning ? 'Stop engine' : 'Start engine',
+            ),
+            isRunning
+              ? h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: 'dlm-btn dlm-btn-primary',
+                    disabled: pending !== '',
+                    onClick: () =>
+                      void run(engine.model, () => api('POST', '/default', { tag: engine.model, provider: 'local-builtin' }), () =>
+                        setNotice(`New sessions now start on ${engine.model} (your own engine).`),
+                      ),
+                  },
+                  'Make this my default model',
+                )
+              : null,
+          ),
+        )
+      }
 
       const systemStrip = () => {
         if (system === null) return null
@@ -687,6 +756,7 @@ window.__ModuleLoader__.load({
         ),
         error.length > 0 ? h('div', { className: 'dlm-note dlm-note-bad' }, error) : null,
         notice.length > 0 ? h('div', { className: 'dlm-note' }, notice) : null,
+        enginePanel(),
         systemStrip(),
         offline
           ? h(

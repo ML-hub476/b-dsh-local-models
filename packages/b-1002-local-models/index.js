@@ -113,12 +113,15 @@ export function apply(ctx) {
     }
   }
 
+  /** Routes a default-model switch may target. */
+  const DEFAULTABLE_PROVIDERS = new Set([PROVIDER_ID, 'local-builtin'])
+
   /** Point new sessions at one local model. */
-  async function makeDefault(tag) {
+  async function makeDefault(tag, provider) {
     const defaults = ctx.get('agentDefaultModel')
     if (defaults === undefined) return { ok: false, reason: 'no-default-model-service' }
     try {
-      await defaults.saveSelection({ provider: PROVIDER_ID, model: tag })
+      await defaults.saveSelection({ provider, model: tag })
       return { ok: true }
     } catch (error) {
       return { ok: false, reason: 'write-failed', error: messageOf(error) }
@@ -234,11 +237,15 @@ export function apply(ctx) {
       if (method === 'POST' && path === '/default') {
         const body = await readJson(request)
         const tag = requireTag(body?.tag)
-        const provider = await syncProvider()
-        if (provider.ok !== true) return sendJson(response, 409, { error: describeSyncFailure(provider), provider })
-        const result = await makeDefault(tag)
+        const target = String(body?.provider ?? PROVIDER_ID)
+        if (!DEFAULTABLE_PROVIDERS.has(target)) throw new Error(`Not a local provider: ${target}`)
+        if (target === PROVIDER_ID) {
+          const provider = await syncProvider()
+          if (provider.ok !== true) return sendJson(response, 409, { error: describeSyncFailure(provider), provider })
+        }
+        const result = await makeDefault(tag, target)
         if (result.ok !== true) return sendJson(response, 409, { error: describeDefaultFailure(result) })
-        return sendJson(response, 200, { default: { provider: PROVIDER_ID, model: tag } })
+        return sendJson(response, 200, { default: { provider: target, model: tag } })
       }
       if (method === 'POST' && path === '/sync') {
         const provider = await syncProvider()
