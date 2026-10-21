@@ -10,8 +10,28 @@ import { pipeline } from 'node:stream/promises'
 
 const HF = 'https://huggingface.co'
 
-/** Quantizations worth offering, best first for a laptop. */
-const PREFERRED_QUANTS = ['Q4_K_M', 'Q4_K_S', 'Q5_K_M', 'Q3_K_M', 'Q8_0', 'Q6_K']
+/** The quantization a laptop should take first, most sensible first. */
+const PREFERRED_ORDER = [
+  /(?:^|[^A-Z])Q4_K_M/i,
+  /Q4_K_XL/i,
+  /Q4_0/i,
+  /Q5_K_M/i,
+  /Q4_K_S/i,
+  /Q3_K_M|Q3_K_XL/i,
+  /Q6_K/i,
+  /Q8_0/i,
+  /IQ4_XS/i,
+  /IQ3_XS|IQ3_S/i,
+  /Q2_K/i,
+  /IQ2|IQ1/i,
+  /BF16|F16/i,
+]
+
+/** The quantization name inside a file name, for the row label. */
+function quantOf(name) {
+  const match = /(IQ\d[_A-Z0-9]*|Q\d[_A-Z0-9]*|BF16|F16|Q8_0)/i.exec(name)
+  return match === null ? '' : match[1].toUpperCase()
+}
 
 /** Search GGUF repositories, most downloaded first. */
 export async function searchModels(query, limit = 24) {
@@ -75,24 +95,35 @@ export async function listFiles(repo) {
   if (!response.ok) throw new Error(`Hugging Face answered HTTP ${response.status}`)
   const body = await response.json()
   const tags = Array.isArray(body.tags) ? body.tags.map(String) : []
-  const files = (Array.isArray(body.siblings) ? body.siblings : [])
+  const raw = (Array.isArray(body.siblings) ? body.siblings : [])
     .filter((sibling) => String(sibling.rfilename ?? '').toLowerCase().endsWith('.gguf'))
     .map((sibling) => ({ name: String(sibling.rfilename), size: Number(sibling.size) || 0 }))
-  if (files.length === 0) throw new Error('This repository has no .gguf file.')
-  const rank = (name) => {
-    const index = PREFERRED_QUANTS.findIndex((quant) => name.toUpperCase().includes(quant))
-    return index < 0 ? PREFERRED_QUANTS.length : index
+  if (raw.length === 0) throw new Error('This repository has no .gguf file.')
+  // One repository is an archive: many quantizations, split shards, and vision
+  // projectors. Collapse shards, drop projectors, and offer one line per model.
+  const merged = new Map()
+  for (const entry of raw) {
+    if (/mmproj/i.test(entry.name)) continue
+    const shard = /^(.*?)-(\d{5})-of-(\d{5})\.gguf$/i.exec(entry.name)
+    const name = shard === null ? entry.name : `${shard[1]}.gguf`
+    const key = name.toLowerCase()
+    const previous = merged.get(key) ?? { name, size: 0, quant: quantOf(name) }
+    previous.size += entry.size
+    merged.set(key, previous)
   }
-  const sorted = files.sort((a, b) => rank(a.name) - rank(b.name) || a.size - b.size)
+  const files = [...merged.values()]
+  const preferred = PREFERRED_ORDER.findIndex((pattern) => files.some((file) => pattern.test(file.name)))
+  const pick = preferred < 0 ? 0 : files.findIndex((file) => PREFERRED_ORDER[preferred].test(file.name))
+  if (pick > 0) files.unshift(...files.splice(pick, 1))
   return {
     repo: String(body.id ?? body.modelId ?? repo),
     gated: body.gated === true || body.gated === 'auto' || body.gated === 'manual',
     license: String(body.cardData?.license ?? licenseOf(tags)),
     updated: String(body.lastModified ?? ''),
     capabilities: capabilitiesOf(repo, tags),
-    files: sorted,
-    recommended: sorted[0]?.name ?? '',
-    recommendedSize: sorted[0]?.size ?? 0,
+    files,
+    recommended: files[0]?.name ?? '',
+    recommendedSize: files[0]?.size ?? 0,
   }
 }
 

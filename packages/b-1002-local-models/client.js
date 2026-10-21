@@ -545,8 +545,8 @@ window.__ModuleLoader__.load({
                 h('span', { className: `dlm-fit dlm-fit-${fit.level}` }, fit.label),
                 h('span', { className: 'dlm-quiet', style: { marginLeft: '8px' } }, fit.sentence),
               ),
-          h('div', { className: 'dlm-section-title', style: { marginTop: '4px' } }, h('span', null, 'Download options')),
-          model.files.map((file) =>
+          h('div', { className: 'dlm-section-title', style: { marginTop: '4px' } }, h('span', null, `Download options (${model.files.length})`)),
+          model.files.slice(0, 1).map((file) =>
             h(
               'div',
               { className: 'dlm-row', key: file.name },
@@ -554,10 +554,29 @@ window.__ModuleLoader__.load({
               h(
                 'div',
                 { className: 'dlm-actions' },
-                h('button', { type: 'button', className: 'dlm-btn', disabled: downloading || pending !== '', onClick: () => void downloadFile(model.repo, file.name) }, t('download')),
+                h('button', { type: 'button', className: 'dlm-btn dlm-btn-primary', disabled: downloading || pending !== '', onClick: () => void downloadFile(model.repo, file.name) }, t('download')),
               ),
             ),
           ),
+          model.files.length > 1
+            ? h(
+                'details',
+                { className: 'dlm-fold' },
+                h('summary', null, `All ${model.files.length} quantizations`),
+                h(
+                  'div',
+                  { style: { marginTop: '8px' } },
+                  model.files.slice(1).map((file) =>
+                    h(
+                      'div',
+                      { className: 'dlm-row', key: file.name },
+                      h('div', { className: 'dlm-row-main' }, h('div', { className: 'dlm-file-name', style: { fontWeight: 600 } }, file.name), h('div', { className: 'dlm-meta' }, formatBytes(file.size) || t('sizeUnknown'))),
+                      h('div', { className: 'dlm-actions' }, h('button', { type: 'button', className: 'dlm-btn', disabled: downloading || pending !== '', onClick: () => void downloadFile(model.repo, file.name) }, t('download'))),
+                    ),
+                  ),
+                ),
+              )
+            : null,
           model.description.length > 0
             ? h(
                 'div',
