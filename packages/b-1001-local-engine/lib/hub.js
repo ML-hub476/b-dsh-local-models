@@ -161,3 +161,48 @@ export async function removeFile(targetPath) {
 export function modelPathFor(modelDir, repo, file) {
   return join(modelDir, localName(repo, file))
 }
+
+/** Strip a model card down to readable text for the detail page. */
+export function cardText(markdown, limit = 1600) {
+  let text = String(markdown ?? '')
+  text = text.replace(/^---[\s\S]*?---\s*/, '')
+  text = text.replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+  text = text.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+  text = text.replace(/<[^>]+>/g, '')
+  text = text.replace(/^#{1,6}\s*/gm, '')
+  text = text.replace(/[*_`>]/g, '')
+  text = text.replace(/\n{3,}/g, '\n\n').trim()
+  return text.length > limit ? `${text.slice(0, limit).trim()}…` : text
+}
+
+/** Parameter count from a repository name: 27B, 0.6B, 8x7B. */
+export function paramsOf(repo) {
+  const matches = String(repo).match(/(\d+(?:\.\d+)?\s?x\s?\d+(?:\.\d+)?|\d+(?:\.\d+)?)\s?[bBmM](?![a-zA-Z])/g)
+  if (matches === null || matches.length === 0) return ''
+  return matches[matches.length - 1].replace(/\s+/g, '')
+}
+
+/** Everything the detail page shows, in one request. */
+export async function modelDetail(repo) {
+  const [files, meta] = await Promise.all([
+    listFiles(repo),
+    fetch(`${HF}/api/models/${String(repo).split('/').map(encodeURIComponent).join('/')}`,
+      { headers: { accept: 'application/json', 'user-agent': 'b-1001-local-engine/0.1.0' }, signal: AbortSignal.timeout(15000) }
+    ).then((response) => (response.ok ? response.json() : {})).catch(() => ({})),
+  ])
+  const readme = await fetch(`${HF}/${String(repo).split('/').map(encodeURIComponent).join('/')}/raw/main/README.md`,
+    { headers: { 'user-agent': 'b-1001-local-engine/0.1.0' }, signal: AbortSignal.timeout(15000) }
+  ).then((response) => (response.ok ? response.text() : '')).catch(() => '')
+  const tags = Array.isArray(meta.tags) ? meta.tags.map(String) : []
+  const archTag = tags.find((tag) => /^(qwen|llama|gemma|mistral|phi|deepseek|glm|minimax|bonsai)/i.test(tag))
+  return {
+    ...files,
+    downloads: Number(meta.downloads) || 0,
+    likes: Number(meta.likes) || 0,
+    params: paramsOf(repo),
+    arch: archTag ?? String(repo).split('/')[0].toLowerCase(),
+    format: 'GGUF',
+    domain: files.capabilities.includes('vision') ? 'vlm' : 'llm',
+    description: cardText(readme),
+  }
+}

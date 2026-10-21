@@ -171,6 +171,18 @@ window.__ModuleLoader__.load({
       }
     }
 
+    /** LM Studio says "65 days ago"; so do we. */
+    function agoOf(iso) {
+      const at = Date.parse(String(iso ?? ''))
+      if (!Number.isFinite(at)) return 'unknown'
+      const days = Math.floor((Date.now() - at) / 86400000)
+      if (days <= 0) return 'today'
+      if (days === 1) return 'yesterday'
+      if (days < 30) return `${days} days ago`
+      const months = Math.round(days / 30)
+      return months <= 1 ? 'last month' : `${months} months ago`
+    }
+
     const STYLES = `
       .dlm-card { display: flex; flex-direction: column; gap: 14px; margin-top: 20px; padding: 18px 18px 16px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 12px; background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); }
       .dlm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -213,6 +225,17 @@ window.__ModuleLoader__.load({
       .dlm-input:focus { outline: 2px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, transparent); outline-offset: -1px; }
       .dlm-section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--dsw-alias-label-secondary); }
       .dlm-quiet { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); }
+      .dlm-detail { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px solid var(--dsw-alias-border-l1); border-radius: 10px; background: var(--dsw-alias-bg-layer-2); }
+      .dlm-detail-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .dlm-detail-title { font-size: 16px; font-weight: 650; line-height: 1.35; word-break: break-word; }
+      .dlm-detail-caps { display: flex; flex-wrap: wrap; gap: 6px; }
+      .dlm-cap { padding: 1px 8px; border-radius: 6px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 12%, transparent); color: var(--dsw-alias-brand-primary); font-size: 11.5px; line-height: 19px; }
+      .dlm-specs { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
+      .dlm-spec { padding: 8px 10px; border-radius: 8px; background: var(--dsw-alias-bg-base); }
+      .dlm-spec-key { font-size: 10.5px; letter-spacing: 0.03em; text-transform: uppercase; color: var(--dsw-alias-label-secondary); }
+      .dlm-spec-value { font-size: 12.5px; line-height: 1.4; }
+      .dlm-readme { padding: 10px 12px; border-radius: 9px; background: var(--dsw-alias-bg-base); }
+      .dlm-readme-text { font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-secondary); white-space: pre-wrap; max-height: 260px; overflow: auto; }
       .dlm-select { padding: 4px 8px; border-radius: 7px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; font-size: 11.5px; text-transform: none; letter-spacing: 0; }
       .dlm-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; vertical-align: middle; }
       .dlm-chip { padding: 0 6px; border-radius: 5px; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 17px; }
@@ -461,7 +484,7 @@ window.__ModuleLoader__.load({
         }
         setPending(`details:${repo}`)
         try {
-          setDetails(await engineApi('GET', `/hub/files?repo=${encodeURIComponent(repo)}`))
+          setDetails(await engineApi('GET', `/hub/detail?repo=${encodeURIComponent(repo)}`))
         } catch (failure) {
           setError(String(failure?.message ?? failure))
         } finally {
@@ -484,7 +507,70 @@ window.__ModuleLoader__.load({
         return h('span', { className: `dlm-fit dlm-fit-${fit.level}` }, fit.label)
       }
 
+      const detailView = (model) => {
+        const fit = fitOf(model.recommendedSize, system?.totalMemoryBytes, t)
+        const spec = (key, value) =>
+          h('div', { className: 'dlm-spec', key }, h('div', { className: 'dlm-spec-key' }, key), h('div', { className: 'dlm-spec-value' }, value))
+        return h(
+          'div',
+          { className: 'dlm-detail' },
+          h(
+            'div',
+            { className: 'dlm-detail-top' },
+            h('button', { type: 'button', className: 'dlm-btn', onClick: () => setDetails(null) }, '← Back'),
+            h('span', { className: 'dlm-quiet' }, `${model.downloads.toLocaleString()} downloads · ${model.likes.toLocaleString()} likes`),
+          ),
+          h('div', { className: 'dlm-detail-title' }, model.repo),
+          h('div', { className: 'dlm-quiet', style: { marginTop: '2px' } }, `Last updated: ${agoOf(model.updated)}`),
+          h(
+            'div',
+            { className: 'dlm-detail-caps' },
+            model.capabilities.length > 0
+              ? model.capabilities.map((cap) => h('span', { className: 'dlm-cap', key: cap }, cap))
+              : h('span', { className: 'dlm-quiet' }, 'No capability is declared for this repository.'),
+          ),
+          h(
+            'div',
+            { className: 'dlm-specs' },
+            spec('Params', model.params || 'unknown'),
+            spec('Arch', model.arch || 'unknown'),
+            spec('Domain', model.domain || 'llm'),
+            spec('Format', model.format || 'GGUF'),
+          ),
+          fit === null
+            ? null
+            : h(
+                'div',
+                { className: 'dlm-note', style: { marginTop: '2px' } },
+                h('span', { className: `dlm-fit dlm-fit-${fit.level}` }, fit.label),
+                h('span', { className: 'dlm-quiet', style: { marginLeft: '8px' } }, fit.sentence),
+              ),
+          h('div', { className: 'dlm-section-title', style: { marginTop: '4px' } }, h('span', null, 'Download options')),
+          model.files.map((file) =>
+            h(
+              'div',
+              { className: 'dlm-row', key: file.name },
+              h('div', { className: 'dlm-row-main' }, h('div', { className: 'dlm-file-name', style: { fontWeight: 600 } }, file.name), h('div', { className: 'dlm-meta' }, formatBytes(file.size) || t('sizeUnknown'))),
+              h(
+                'div',
+                { className: 'dlm-actions' },
+                h('button', { type: 'button', className: 'dlm-btn', disabled: downloading || pending !== '', onClick: () => void downloadFile(model.repo, file.name) }, t('download')),
+              ),
+            ),
+          ),
+          model.description.length > 0
+            ? h(
+                'div',
+                { className: 'dlm-readme' },
+                h('div', { className: 'dlm-section-title', style: { marginBottom: '6px' } }, h('span', null, 'README')),
+                h('div', { className: 'dlm-readme-text' }, model.description),
+              )
+            : null,
+        )
+      }
+
       const hubBlock = () => {
+        if (details !== null) return detailView(details)
         const items = sortItems(Array.isArray(hub?.items) ? hub.items : [])
         return h(
           'div',
@@ -527,7 +613,6 @@ window.__ModuleLoader__.load({
               ? h('div', { className: 'dlm-quiet', style: { padding: '8px 0' } }, t('noResults'))
               : null,
             items.slice(0, 20).map((item) => {
-              const open = details?.repo === item.repo
               return h(
                 'div',
                 { key: item.repo },
@@ -567,39 +652,7 @@ window.__ModuleLoader__.load({
                     ),
                   ),
                 ),
-                open && details !== null
-                  ? h(
-                      'div',
-                      { className: 'dlm-details' },
-                      h('span', { className: 'dlm-details-key' }, 'License'),
-                      h('span', null, details.license),
-                      h('span', { className: 'dlm-details-key' }, 'Updated'),
-                      h('span', null, String(details.updated || '').slice(0, 10) || 'unknown'),
-                      h('span', { className: 'dlm-details-key' }, 'Can do'),
-                      h('span', null, details.capabilities.length > 0 ? details.capabilities.join(' · ') : 'not declared by the repository'),
-                      h('span', { className: 'dlm-details-key' }, t('fit')),
-                      h('span', null, (fitOf(details.recommendedSize, system?.totalMemoryBytes, t) ?? { sentence: t('sizeUnknown') }).sentence),
-                      details.files.slice(0, 6).map((file) =>
-                        h(
-                          'div',
-                          { key: file.name, className: 'dlm-file-row' },
-                          h('span', { className: 'dlm-file-name' }, file.name),
-                          h('span', { className: 'dlm-file-size' }, formatBytes(file.size) || '?'),
-                          h(
-                            'button',
-                            {
-                              type: 'button',
-                              className: 'dlm-btn',
-                              disabled: downloading || pending !== '',
-                              onClick: () => void downloadFile(details.repo, file.name),
-                            },
-                            t('download'),
-                          ),
-                        ),
-                      ),
-                      h('div', { className: 'dlm-quiet' }, 'Capabilities are inferred from the repository name and tags; Hugging Face does not label every model.'),
-                    )
-                  : null,
+
               )
             }),
           ),
