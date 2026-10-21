@@ -183,6 +183,27 @@ window.__ModuleLoader__.load({
       return value
     }
 
+    /** One request to the B-1001 engine surface. */
+    async function engineApi(method, path, body) {
+      const response = await fetch(`/local-engine${path}`, {
+        method,
+        headers: {
+          'x-dsh-local-engine': '1',
+          ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+      const text = await response.text()
+      let value = {}
+      try {
+        value = text.length > 0 ? JSON.parse(text) : {}
+      } catch {
+        value = {}
+      }
+      if (!response.ok) throw new Error(value.error ?? `Request failed (HTTP ${response.status})`)
+      return value
+    }
+
     const GB = 1073741824
 
     function formatBytes(bytes) {
@@ -271,6 +292,8 @@ window.__ModuleLoader__.load({
       .dlm-input { flex: 1; min-width: 0; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; font-size: 12.5px; }
       .dlm-input:focus { outline: 2px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, transparent); outline-offset: -1px; }
       .dlm-section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--dsw-alias-label-secondary); }
+      .dlm-fold { border-top: 1px solid var(--dsw-alias-border-l1); padding-top: 10px; }
+      .dlm-fold > summary { cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--dsw-alias-label-secondary); }
       .dlm-quiet { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); }
       .dlm-scroll { max-height: 360px; overflow: auto; padding-right: 2px; }
     `
@@ -287,6 +310,12 @@ window.__ModuleLoader__.load({
       const [dismissed, setDismissed] = useState(0)
       const [open, setOpen] = useState('')
       const [engine, setEngine] = useState(null)
+      const [engineModels, setEngineModels] = useState([])
+      const [hubQuery, setHubQuery] = useState('')
+      const [hub, setHub] = useState(null)
+      const [hubBusy, setHubBusy] = useState(false)
+      const [hubPick, setHubPick] = useState(null)
+      const [hubJob, setHubJob] = useState(null)
 
       const running = state?.job?.status === 'running'
       const totalMemoryBytes = state?.system?.totalMemoryBytes ?? 0
@@ -320,6 +349,19 @@ window.__ModuleLoader__.load({
             setEngine(response.ok ? await response.json() : null)
           } catch {
             if (alive) setEngine(null)
+          }
+          try {
+            const response = await fetch('/local-engine/models', { headers: { 'x-dsh-local-engine': '1' } })
+            if (alive && response.ok) setEngineModels((await response.json()).models ?? [])
+            else if (alive) setEngineModels([])
+          } catch {
+            if (alive) setEngineModels([])
+          }
+          try {
+            const response = await fetch('/local-engine/hub/download', { headers: { 'x-dsh-local-engine': '1' } })
+            if (alive && response.ok) setHubJob((await response.json()).job ?? null)
+          } catch {
+            /* the engine is optional */
           }
         }
         void load()
@@ -422,6 +464,77 @@ window.__ModuleLoader__.load({
           typeof description === 'string' && description.length > 0 ? h('div', { className: 'dlm-details-text' }, description) : null,
         )
 
+      const searchHub = useCallback(async (text) => {
+        setHubBusy(true)
+        try {
+          const value = await engineApi('GET', `/hub/search?q=${encodeURIComponent(text)}`)
+          setHub(value)
+        } catch (failure) {
+          setHub({ items: [], error: String(failure?.message ?? failure) })
+        } finally {
+          setHubBusy(false)
+        }
+      }, [])
+
+      useEffect(() => {
+        let alive = true
+        const timer = setTimeout(() => {
+          if (alive) void searchHub(hubQuery)
+        }, 400)
+        return () => {
+          alive = false
+          clearTimeout(timer)
+        }
+      }, [hubQuery, searchHub])
+
+      const chooseRepo = async (repo) => {
+        setHubBusy(true)
+        setHubPick(null)
+        try {
+          setHubPick(await engineApi('GET', `/hub/files?repo=${encodeURIComponent(repo)}`))
+        } catch (failure) {
+          setError(String(failure?.message ?? failure))
+        } finally {
+          setHubBusy(false)
+        }
+      }
+
+      const downloadGGUF = async (repo, file) => {
+        setError('')
+        try {
+          const value = await engineApi('POST', '/hub/download', { repo, file })
+          setHubJob(value.job ?? null)
+        } catch (failure) {
+          setError(String(failure?.message ?? failure))
+        }
+      }
+
+      const useEngineModel = async (name) => {
+        setPending(name)
+        setError('')
+        try {
+          await engineApi('POST', '/use', { file: name })
+        } catch (failure) {
+          setError(String(failure?.message ?? failure))
+        } finally {
+          setPending('')
+        }
+        await refresh()
+      }
+
+      const removeEngineModel = async (name) => {
+        if (!window.confirm(`Delete ${name} from this Mac?`)) return
+        setPending(name)
+        try {
+          await engineApi('DELETE', '/models', { file: name })
+        } catch (failure) {
+          setError(String(failure?.message ?? failure))
+        } finally {
+          setPending('')
+        }
+        await refresh()
+      }
+
       /** B-1001 has no window of its own, so the card is where it is visible. */
       const engineAction = async (action) => {
         try {
@@ -480,6 +593,143 @@ window.__ModuleLoader__.load({
                 )
               : null,
           ),
+        )
+      }
+
+      const engineHubBlock = () => {
+        if (engine === null) return null
+        const items = Array.isArray(hub?.items) ? hub.items : []
+        const jobRunning = hubJob?.status === 'running'
+        return h(
+          'div',
+          { style: { display: 'flex', flexDirection: 'column', gap: '10px' } },
+          h('div', { className: 'dlm-section-title' }, h('span', null, "Your engine's models")),
+          engineModels.length === 0
+            ? h('div', { className: 'dlm-quiet' }, 'No model downloaded yet. Pick one from Hugging Face below.')
+            : engineModels.map((model) =>
+                h(
+                  'div',
+                  { className: 'dlm-row', key: model.name },
+                  h(
+                    'div',
+                    { className: 'dlm-row-main', style: { cursor: 'default' } },
+                    h(
+                      'div',
+                      { className: 'dlm-name' },
+                      model.name,
+                      model.active ? h('span', { className: 'dlm-badge' }, 'Loaded') : null,
+                    ),
+                    h('div', { className: 'dlm-meta' }, formatBytes(model.size)),
+                  ),
+                  h(
+                    'div',
+                    { className: 'dlm-actions' },
+                    model.active
+                      ? null
+                      : h(
+                          'button',
+                          { type: 'button', className: 'dlm-btn', disabled: pending !== '', onClick: () => void useEngineModel(model.name) },
+                          'Use',
+                        ),
+                    h(
+                      'button',
+                      { type: 'button', className: 'dlm-btn dlm-btn-danger', disabled: pending !== '', onClick: () => void removeEngineModel(model.name) },
+                      'Remove',
+                    ),
+                  ),
+                ),
+              ),
+          jobRunning
+            ? h(
+                'div',
+                { className: 'dlm-note' },
+                h('div', { className: 'dlm-job-head' }, h('span', null, `Downloading ${hubJob.file}`), h('span', null, `${hubJob.percent}%`)),
+                h('div', { className: 'dlm-bar' }, h('div', { className: 'dlm-bar-fill', style: { width: `${hubJob.percent}%` } })),
+                h(
+                  'div',
+                  { className: 'dlm-job-foot' },
+                  h('span', null, hubJob.total > 0 ? `${formatBytes(hubJob.received)} / ${formatBytes(hubJob.total)}` : formatBytes(hubJob.received)),
+                  h('span', null, 'Saved to your engine folder'),
+                ),
+              )
+            : null,
+          hubJob?.status === 'done'
+            ? h('div', { className: 'dlm-note' }, `${hubJob.name} downloaded. Press “Use” to load it.`)
+            : null,
+          hubJob?.status === 'error'
+            ? h('div', { className: 'dlm-note dlm-note-bad' }, `Download failed: ${hubJob.error}`)
+            : null,
+          h('div', { className: 'dlm-section-title', style: { marginTop: '6px' } }, h('span', null, 'Find models on Hugging Face')),
+          h(
+            'div',
+            { className: 'dlm-search' },
+            h('input', {
+              className: 'dlm-input',
+              type: 'search',
+              value: hubQuery,
+              placeholder: 'Search GGUF models, for example qwen3 or gemma',
+              onChange: (event) => setHubQuery(event.target.value),
+              'aria-label': 'Search Hugging Face',
+            }),
+          ),
+          hub?.error !== undefined ? h('div', { className: 'dlm-note dlm-note-warn' }, `Hugging Face search failed: ${hub.error}`) : null,
+          h(
+            'div',
+            { className: 'dlm-scroll', style: { marginTop: '2px' } },
+            items.length === 0 && !hubBusy && hub?.error === undefined
+              ? h('div', { className: 'dlm-quiet', style: { padding: '8px 0' } }, 'No GGUF repository matched that search.')
+              : null,
+            items.slice(0, 20).map((item) =>
+              h(
+                'div',
+                { className: 'dlm-row', key: item.repo },
+                h(
+                  'div',
+                  { className: 'dlm-row-main', style: { cursor: 'default' } },
+                  h('div', { className: 'dlm-name' }, item.repo),
+                  h(
+                    'div',
+                    { className: 'dlm-meta' },
+                    [item.gated ? 'needs a Hugging Face login' : '', `${item.downloads.toLocaleString()} downloads`]
+                      .filter((part) => part.length > 0)
+                      .join(' · '),
+                  ),
+                ),
+                h(
+                  'div',
+                  { className: 'dlm-actions' },
+                  h(
+                    'button',
+                    { type: 'button', className: 'dlm-btn', disabled: hubBusy || item.gated, onClick: () => void chooseRepo(item.repo) },
+                    item.gated ? 'Gated' : 'Choose',
+                  ),
+                ),
+              ),
+            ),
+          ),
+          hubPick !== null
+            ? h(
+                'div',
+                { className: 'dlm-note' },
+                h('div', null, hubPick.repo),
+                h(
+                  'div',
+                  { className: 'dlm-quiet', style: { marginTop: '4px' } },
+                  `${hubPick.files.length} model file(s) · license ${hubPick.license} · smallest download first`,
+                ),
+                h(
+                  'div',
+                  { style: { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' } },
+                  hubPick.files.slice(0, 4).map((file) =>
+                    h(
+                      'button',
+                      { type: 'button', className: 'dlm-btn', key: file, disabled: jobRunning, onClick: () => void downloadGGUF(hubPick.repo, file) },
+                      file,
+                    ),
+                  ),
+                ),
+              )
+            : null,
         )
       }
 
@@ -766,11 +1016,21 @@ window.__ModuleLoader__.load({
               h('div', null, h('span', { className: 'dlm-note-code' }, 'ollama serve')),
             )
           : null,
-        jobPanel(),
-        jobStrip(),
-        offline ? null : starterBlock(),
-        offline ? null : installedBlock(),
-        offline ? null : catalogBlock(),
+        engineHubBlock(),
+        h(
+          'details',
+          { className: 'dlm-fold' },
+          h('summary', null, engine === null ? 'Ollama models' : 'Ollama (optional — your own engine does not need it)'),
+          h(
+            'div',
+            { style: { display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '12px' } },
+            jobPanel(),
+            jobStrip(),
+            offline ? null : starterBlock(),
+            offline ? null : installedBlock(),
+            offline ? null : catalogBlock(),
+          ),
+        ),
       )
     }
 

@@ -8,8 +8,8 @@ plugin name in the Harness UI, in the README, and in the release tag.
 
 | Code | Package | What it is | State |
 |---|---|---|---|
-| **B-1001** | `@ml-hub476/b-1001-local-engine` | The **built-in engine**: runs a GGUF model in its own child process and serves an OpenAI-compatible endpoint, so no Ollama or other engine has to be installed. | ✅ runs |
-| **B-1002** | `@ml-hub476/b-1002-local-models` | The **one-button card** on Settings → Models: reads your CPU, memory and disk, marks which models fit, downloads with live progress, and puts them in the model menu. | ✅ shipped |
+| **B-1001** | `@ml-hub476/b-1001-local-engine` | The **engine that replaces Ollama**: searches Hugging Face, downloads GGUF files into its own folder, runs them in a child process and serves an OpenAI-compatible endpoint. | ✅ runs |
+| **B-1002** | `@ml-hub476/b-1002-local-models` | The **one-button card** on Settings → Models: engine status, the engine's model shelf, Hugging Face search, CPU/memory/disk facts and fit marks. Ollama is a folded-away extra. | ✅ shipped |
 | **B-1003** | `@ml-hub476/b-1003-local-models-bundle` | The **one-click bundle** that switches on B-1001 and B-1002 together. | 🧱 next |
 
 Package names, titles and folder names all carry the same code, so a plugin row, a README

@@ -9,9 +9,12 @@
  */
 import { spawn } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
+import { readdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { downloadFile, listFiles, localName, modelPathFor, removeFile, searchModels } from './lib/hub.js'
 
 const PROVIDER_ID = 'local-builtin'
 const ROUTE_PREFIX = '/local-engine'
@@ -22,14 +25,17 @@ const MAX_TOKENS = 4096
 /** A fixed port keeps a written model-menu route valid across restarts. */
 const DEFAULT_PORT = 18111
 
+/** Where the engine keeps the models it downloaded itself. */
+const MODEL_DIR = join(homedir(), '.dsh', 'local-engine', 'models')
+
 export function apply(ctx, config) {
   const rawModelPath = typeof config?.modelPath === 'string' ? config.modelPath.trim() : ''
-  const modelPath = rawModelPath.startsWith('~/') ? join(homedir(), rawModelPath.slice(2)) : rawModelPath
+  let modelPath = rawModelPath.startsWith('~/') ? join(homedir(), rawModelPath.slice(2)) : rawModelPath
   const contextSize = Number(config?.contextSize) > 0 ? Number(config.contextSize) : 4096
   const port = Number(config?.port) > 0 ? Number(config.port) : DEFAULT_PORT
   const displayName =
     typeof config?.displayName === 'string' && config.displayName.length > 0 ? config.displayName : 'Local (built-in)'
-  const modelName = modelPath.length > 0 ? basename(modelPath) : ''
+  let modelName = modelPath.length > 0 ? basename(modelPath) : ''
 
   const state = {
     sync: null,
@@ -241,7 +247,97 @@ export function apply(ctx, config) {
       error: state.error,
       missing: state.missing,
       sync: state.sync,
+      modelDir: MODEL_DIR,
     }
+  }
+
+  /** Swap the engine onto a model from its own shelf. */
+  async function useModel(file) {
+    const next = join(MODEL_DIR, String(file))
+    if (!existsSync(next)) throw new Error(`No downloaded model named ${file}`)
+    stopWorker()
+    modelPath = next
+    modelName = basename(next)
+    state.model = modelName
+    state.modelPath = next
+    state.missing = ''
+    state.error = ''
+    state.sync = null
+    return start()
+  }
+
+  /** The models this engine downloaded for itself. */
+  async function shelf() {
+    try {
+      const names = await readdir(MODEL_DIR)
+      const models = []
+      for (const name of names) {
+        if (!name.toLowerCase().endsWith('.gguf')) continue
+        const path = join(MODEL_DIR, name)
+        let size = 0
+        try {
+          size = statSync(path).size
+        } catch {
+          size = 0
+        }
+        models.push({ name, size, active: path === modelPath })
+      }
+      return models.sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name))
+    } catch {
+      return []
+    }
+  }
+
+  const download = { active: null }
+
+  function startDownload(repo, file) {
+    if (download.active !== null && download.active.status === 'running') {
+      throw new Error(`A download is already running: ${download.active.name}`)
+    }
+    const target = modelPathFor(MODEL_DIR, repo, file)
+    const job = {
+      repo,
+      file,
+      name: localName(repo, file),
+      status: 'running',
+      received: 0,
+      total: 0,
+      percent: 0,
+      error: '',
+      startedAt: Date.now(),
+      finishedAt: null,
+    }
+    download.active = job
+    void (async () => {
+      try {
+        const result = await downloadFile(repo, file, target, (progress) => {
+          job.received = progress.received
+          job.total = progress.total
+          job.percent = progress.percent
+        })
+        job.status = 'done'
+        job.percent = 100
+        job.path = result.path
+      } catch (error) {
+        job.status = 'error'
+        job.error = messageOf(error)
+      } finally {
+        job.finishedAt = Date.now()
+      }
+    })()
+    return job
+  }
+
+  async function readJsonBody(request) {
+    const chunks = []
+    let bytes = 0
+    for await (const chunk of request) {
+      bytes += chunk.length
+      if (bytes > 256 * 1024) throw new Error('Request body is too large')
+      chunks.push(chunk)
+    }
+    if (chunks.length === 0) return {}
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'))
   }
 
   function sendJson(response, status, value) {
@@ -263,6 +359,32 @@ export function apply(ctx, config) {
     const method = request.method ?? 'GET'
     try {
       if (method === 'GET' && path === '/state') return sendJson(response, 200, view())
+      if (method === 'GET' && path === '/models') return sendJson(response, 200, { models: await shelf(), dir: MODEL_DIR })
+      if (method === 'GET' && path === '/hub/search') {
+        return sendJson(response, 200, { items: await searchModels(url.searchParams.get('q') ?? '') })
+      }
+      if (method === 'GET' && path === '/hub/files') {
+        return sendJson(response, 200, await listFiles(url.searchParams.get('repo') ?? ''))
+      }
+      if (method === 'POST' && path === '/hub/download') {
+        const body = await readJsonBody(request)
+        const repo = String(body?.repo ?? '')
+        const file = String(body?.file ?? '')
+        if (repo.length === 0 || file.length === 0) throw new Error('repo and file are required')
+        return sendJson(response, 200, { job: startDownload(repo, file) })
+      }
+      if (method === 'GET' && path === '/hub/download') return sendJson(response, 200, { job: download.active })
+      if (method === 'POST' && path === '/use') {
+        const body = await readJsonBody(request)
+        return sendJson(response, 200, await useModel(String(body?.file ?? '')))
+      }
+      if (method === 'DELETE' && path === '/models') {
+        const body = await readJsonBody(request)
+        const name = String(body?.file ?? '')
+        if (name.length === 0 || name.includes('/') || name.includes('..')) throw new Error('Not a model file name')
+        await removeFile(join(MODEL_DIR, name))
+        return sendJson(response, 200, { removed: name, models: await shelf() })
+      }
       if (method === 'POST' && path === '/start') return sendJson(response, 200, await start())
       if (method === 'POST' && path === '/sync') {
         return sendJson(response, 200, { sync: await syncProvider(), engine: view() })
