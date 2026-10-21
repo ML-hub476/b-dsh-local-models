@@ -9,8 +9,8 @@
  */
 import { spawn } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
-import { readdir } from 'node:fs/promises'
-import { homedir } from 'node:os'
+import { readdir, statfs } from 'node:fs/promises'
+import os, { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -83,6 +83,9 @@ export function apply(ctx, config) {
     try {
       await editor.edit(entry, (current, inherited) => {
         const providers = { ...(inherited?.providers ?? {}), ...(current?.providers ?? {}) }
+        // Ollama is no longer part of this product: remove the route an older
+        // version wrote, but only when it still points at Ollama.
+        if (providers.local?.baseURL === 'http://127.0.0.1:11434/v1') delete providers.local
         if (!running) {
           delete providers[PROVIDER_ID]
         } else {
@@ -328,6 +331,30 @@ export function apply(ctx, config) {
     return job
   }
 
+  /** What this computer has, so the card can say which model fits. */
+  async function systemFacts() {
+    const cpus = os.cpus()
+    let disk = null
+    try {
+      const stats = await statfs(homedir())
+      disk = {
+        freeBytes: Number(stats.bavail) * Number(stats.bsize),
+        totalBytes: Number(stats.blocks) * Number(stats.bsize),
+      }
+    } catch {
+      disk = null
+    }
+    return {
+      platform: process.platform,
+      arch: process.arch,
+      cpu: String(cpus[0]?.model ?? '').trim(),
+      cores: cpus.length,
+      totalMemoryBytes: os.totalmem(),
+      freeMemoryBytes: os.freemem(),
+      disk,
+    }
+  }
+
   async function readJsonBody(request) {
     const chunks = []
     let bytes = 0
@@ -358,7 +385,22 @@ export function apply(ctx, config) {
     const path = url.pathname.slice(ROUTE_PREFIX.length) || '/'
     const method = request.method ?? 'GET'
     try {
-      if (method === 'GET' && path === '/state') return sendJson(response, 200, view())
+      if (method === 'GET' && path === '/state') {
+        // A request arrives outside the Loader's transaction, so this is where a
+        // route that failed to write during activation gets repaired.
+        if (state.status === 'running' && state.sync?.ok !== true) void syncProvider()
+        return sendJson(response, 200, view())
+      }
+      if (method === 'GET' && path === '/system') return sendJson(response, 200, await systemFacts())
+      if (method === 'POST' && path === '/default') {
+        const body = await readJsonBody(request)
+        const model = String(body?.model ?? state.model ?? '')
+        if (model.length === 0) throw new Error('No model is loaded')
+        const defaults = ctx.get('agentDefaultModel')
+        if (defaults === undefined) throw new Error('This deployment has no default-model service.')
+        await defaults.saveSelection({ provider: PROVIDER_ID, model })
+        return sendJson(response, 200, { default: { provider: PROVIDER_ID, model } })
+      }
       if (method === 'GET' && path === '/models') return sendJson(response, 200, { models: await shelf(), dir: MODEL_DIR })
       if (method === 'GET' && path === '/hub/search') {
         return sendJson(response, 200, { items: await searchModels(url.searchParams.get('q') ?? '') })

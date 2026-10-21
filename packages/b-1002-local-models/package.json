@@ -1,8 +1,8 @@
 {
   "name": "@ml-hub476/b-1002-local-models",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": false,
-  "description": "B-1002 Local Models — a Models-page card that reads your computer's resources, matches open-source models to it, and installs the ones you click.",
+  "description": "B-1002 Local Models — B-1002 Local Models — the one-button card: your own engine status, its model shelf, Hugging Face search, and what this computer can run.",
   "type": "module",
   "main": "./index.js",
   "exports": {
@@ -14,8 +14,6 @@
   "files": [
     "index.js",
     "client.js",
-    "lib/ollama.js",
-    "lib/catalog.js",
     "cordis.patch.yml",
     "locale/en.json",
     "locale/zh.json",
