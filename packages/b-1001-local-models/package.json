@@ -1,0 +1,35 @@
+{
+  "name": "@ml-hub476/b-1001-local-models",
+  "version": "0.2.0",
+  "private": false,
+  "description": "B-1001 Local Models — a Models-page card that reads your computer's resources, matches open-source models to it, and installs the ones you click.",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "lib/ollama.js",
+    "lib/catalog.js",
+    "cordis.patch.yml",
+    "locale/en.json",
+    "locale/zh.json",
+    "icon.svg"
+  ],
+  "keywords": ["dsh", "dsh-plugin", "deepseek-harness", "local-models", "ollama", "b-1001"],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  }
+}

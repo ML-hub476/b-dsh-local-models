@@ -1,0 +1,15 @@
+{
+  "name": "b-dsh-local-models",
+  "version": "0.2.0",
+  "private": true,
+  "description": "B-coded local model plugins for DeepSeek Harness: B-1001 card, B-1002 engine, B-1003 bundle.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Bing Dai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ML-hub476/b-dsh-local-models.git"
+  },
+  "keywords": ["dsh-plugin", "deepseek-harness", "local-models", "ollama", "llama.cpp"],
+  "workspaces": ["packages/*"]
+}

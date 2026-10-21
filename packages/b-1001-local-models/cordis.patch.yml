@@ -1,0 +1,7 @@
+# B-1001 Local Models — the card on Settings -> Models.
+#
+# Inserts one row. The card talks to its own Host half over /local-models/* on
+# the existing Web server, so nothing else needs configuring here.
+- insert:
+    - id: b-1001-local-models
+      name: '@ml-hub476/b-1001-local-models'
