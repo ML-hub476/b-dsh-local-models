@@ -16,44 +16,83 @@ const PREFERRED_QUANTS = ['Q4_K_M', 'Q4_K_S', 'Q5_K_M', 'Q3_K_M', 'Q8_0', 'Q6_K'
 /** Search GGUF repositories, most downloaded first. */
 export async function searchModels(query, limit = 24) {
   const text = String(query ?? '').trim().slice(0, 80)
-  const url = `${HF}/api/models?search=${encodeURIComponent(text)}&filter=gguf&sort=downloads&direction=-1&limit=${limit}`
+  const url = `${HF}/api/models?search=${encodeURIComponent(text)}&filter=gguf&sort=downloads&direction=-1&limit=${limit}&expand[]=lastModified&expand[]=tags`
   const response = await fetch(url, {
     headers: { accept: 'application/json', 'user-agent': 'b-1001-local-engine/0.1.0' },
     signal: AbortSignal.timeout(15000),
   })
   if (!response.ok) throw new Error(`Hugging Face answered HTTP ${response.status}`)
   const rows = await response.json()
-  return (Array.isArray(rows) ? rows : []).map((row) => ({
-    repo: String(row.id ?? row.modelId ?? ''),
-    downloads: typeof row.downloads === 'number' ? row.downloads : 0,
-    updated: String(row.lastModified ?? ''),
-    gated: row.gated === true || row.gated === 'auto' || row.gated === 'manual',
-  })).filter((row) => row.repo.length > 0)
+  const items = (Array.isArray(rows) ? rows : []).map((row) => {
+    const repo = String(row.id ?? row.modelId ?? '')
+    const tags = Array.isArray(row.tags) ? row.tags.map(String) : []
+    return {
+      repo,
+      downloads: typeof row.downloads === 'number' ? row.downloads : 0,
+      updated: String(row.lastModified ?? ''),
+      gated: row.gated === true || row.gated === 'auto' || row.gated === 'manual',
+      capabilities: capabilitiesOf(repo, tags),
+      sizeBytes: 0,
+      license: licenseOf(tags),
+    }
+  }).filter((item) => item.repo.length > 0)
+
+  // Sizes decide the fit mark, so the first few results are inspected in parallel.
+  const enriched = await Promise.all(items.slice(0, 8).map(async (item) => {
+    try {
+      const files = await listFiles(item.repo)
+      return { ...item, sizeBytes: files.recommendedSize, capabilities: files.capabilities, license: files.license }
+    } catch {
+      return item
+    }
+  }))
+  return [...enriched, ...items.slice(8)]
+}
+
+/** Capabilities Hugging Face does not label, inferred from name and tags. */
+export function capabilitiesOf(repo, tags = []) {
+  const haystack = `${repo} ${tags.join(' ')}`.toLowerCase()
+  const found = []
+  if (/image-text-to-text|image-to-text|visual-question|vision|\bvl\b|llava|minicpm-v/.test(haystack)) found.push('vision')
+  if (/tool|function-call|agent/.test(haystack)) found.push('tools')
+  if (/reason|think|r1-|distill|chain-of-thought|\br1\b/.test(haystack)) found.push('reasoning')
+  if (/code|coder/.test(haystack)) found.push('code')
+  return found
+}
+
+function licenseOf(tags) {
+  const entry = (tags ?? []).find((tag) => String(tag).startsWith('license:'))
+  return entry === undefined ? 'unknown' : String(entry).slice('license:'.length)
 }
 
 /** List the GGUF files in one repository, smallest quant first for the pick. */
 export async function listFiles(repo) {
-  const url = `${HF}/api/models/${String(repo).split('/').map(encodeURIComponent).join('/')}`
+  const url = `${HF}/api/models/${String(repo).split('/').map(encodeURIComponent).join('/')}?blobs=true`
   const response = await fetch(url, {
     headers: { accept: 'application/json', 'user-agent': 'b-1001-local-engine/0.1.0' },
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(20000),
   })
   if (!response.ok) throw new Error(`Hugging Face answered HTTP ${response.status}`)
   const body = await response.json()
+  const tags = Array.isArray(body.tags) ? body.tags.map(String) : []
   const files = (Array.isArray(body.siblings) ? body.siblings : [])
-    .map((sibling) => String(sibling.rfilename ?? ''))
-    .filter((name) => name.toLowerCase().endsWith('.gguf'))
+    .filter((sibling) => String(sibling.rfilename ?? '').toLowerCase().endsWith('.gguf'))
+    .map((sibling) => ({ name: String(sibling.rfilename), size: Number(sibling.size) || 0 }))
   if (files.length === 0) throw new Error('This repository has no .gguf file.')
   const rank = (name) => {
     const index = PREFERRED_QUANTS.findIndex((quant) => name.toUpperCase().includes(quant))
     return index < 0 ? PREFERRED_QUANTS.length : index
   }
+  const sorted = files.sort((a, b) => rank(a.name) - rank(b.name) || a.size - b.size)
   return {
-    repo: String(body.modelId ?? repo),
+    repo: String(body.id ?? body.modelId ?? repo),
     gated: body.gated === true || body.gated === 'auto' || body.gated === 'manual',
-    license: String(body.cardData?.license ?? 'unknown'),
-    files: files.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)),
-    recommended: files.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))[0],
+    license: String(body.cardData?.license ?? licenseOf(tags)),
+    updated: String(body.lastModified ?? ''),
+    capabilities: capabilitiesOf(repo, tags),
+    files: sorted,
+    recommended: sorted[0]?.name ?? '',
+    recommendedSize: sorted[0]?.size ?? 0,
   }
 }
 

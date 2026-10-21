@@ -213,6 +213,16 @@ window.__ModuleLoader__.load({
       .dlm-input:focus { outline: 2px solid color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, transparent); outline-offset: -1px; }
       .dlm-section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--dsw-alias-label-secondary); }
       .dlm-quiet { font-size: 12px; line-height: 1.55; color: var(--dsw-alias-label-secondary); }
+      .dlm-select { padding: 4px 8px; border-radius: 7px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; font-size: 11.5px; text-transform: none; letter-spacing: 0; }
+      .dlm-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; vertical-align: middle; }
+      .dlm-chip { padding: 0 6px; border-radius: 5px; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 17px; }
+      .dlm-row-btn { background: transparent; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+      .dlm-row-btn:hover .dlm-name { text-decoration: underline; text-underline-offset: 2px; }
+      .dlm-details { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0 0 8px; padding: 10px 12px; border-radius: 9px; background: var(--dsw-alias-bg-layer-2); font-size: 12px; line-height: 1.5; }
+      .dlm-details-key { color: var(--dsw-alias-label-secondary); white-space: nowrap; }
+      .dlm-file-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding-top: 6px; border-top: 1px solid var(--dsw-alias-border-l1); }
+      .dlm-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
+      .dlm-file-size { color: var(--dsw-alias-label-secondary); font-size: 11.5px; }
       .dlm-scroll { max-height: 340px; overflow: auto; padding-right: 2px; }
     `
 
@@ -225,6 +235,8 @@ window.__ModuleLoader__.load({
       const [hubQuery, setHubQuery] = useState('')
       const [hubBusy, setHubBusy] = useState(true)
       const [hubPick, setHubPick] = useState(null)
+      const [details, setDetails] = useState(null)
+      const [sortBy, setSortBy] = useState('fit')
       const [job, setJob] = useState(null)
       const [pending, setPending] = useState('')
       const [error, setError] = useState('')
@@ -428,12 +440,73 @@ window.__ModuleLoader__.load({
         return null
       }
 
+      const fitLevel = (sizeBytes) => {
+        const fit = fitOf(sizeBytes, system?.totalMemoryBytes, t)
+        return fit === null ? 3 : fit.level === 'good' ? 0 : fit.level === 'tight' ? 1 : 2
+      }
+
+      const sortItems = (items) => {
+        const copy = items.slice()
+        if (sortBy === 'updated') copy.sort((a, b) => String(b.updated).localeCompare(String(a.updated)))
+        else if (sortBy === 'downloads') copy.sort((a, b) => b.downloads - a.downloads)
+        else if (sortBy === 'name') copy.sort((a, b) => a.repo.localeCompare(b.repo))
+        else copy.sort((a, b) => fitLevel(a.sizeBytes) - fitLevel(b.sizeBytes) || String(b.updated).localeCompare(String(a.updated)))
+        return copy
+      }
+
+      const openDetails = async (repo) => {
+        if (details?.repo === repo) {
+          setDetails(null)
+          return
+        }
+        setPending(`details:${repo}`)
+        try {
+          setDetails(await engineApi('GET', `/hub/files?repo=${encodeURIComponent(repo)}`))
+        } catch (failure) {
+          setError(String(failure?.message ?? failure))
+        } finally {
+          setPending('')
+        }
+      }
+
+      const capChips = (caps, key) =>
+        caps.length === 0
+          ? null
+          : h(
+              'span',
+              { className: 'dlm-chips', key },
+              caps.map((cap) => h('span', { className: 'dlm-chip', key: cap }, cap)),
+            )
+
+      const fitChip = (sizeBytes) => {
+        const fit = fitOf(sizeBytes, system?.totalMemoryBytes, t)
+        if (fit === null) return h('span', { className: 'dlm-fit dlm-fit-tight' }, t('sizeUnknown'))
+        return h('span', { className: `dlm-fit dlm-fit-${fit.level}` }, fit.label)
+      }
+
       const hubBlock = () => {
-        const items = Array.isArray(hub?.items) ? hub.items : []
+        const items = sortItems(Array.isArray(hub?.items) ? hub.items : [])
         return h(
           'div',
           null,
-          h('div', { className: 'dlm-section-title' }, h('span', null, t('searchTitle'))),
+          h(
+            'div',
+            { className: 'dlm-section-title' },
+            h('span', null, t('searchTitle')),
+            h(
+              'select',
+              {
+                className: 'dlm-select',
+                value: sortBy,
+                onChange: (event) => setSortBy(event.target.value),
+                'aria-label': 'Sort models',
+              },
+              h('option', { value: 'fit' }, 'Best for this computer'),
+              h('option', { value: 'updated' }, 'Recently updated'),
+              h('option', { value: 'downloads' }, 'Most downloaded'),
+              h('option', { value: 'name' }, 'Name A–Z'),
+            ),
+          ),
           h(
             'div',
             { className: 'dlm-search', style: { marginTop: '8px' } },
@@ -453,42 +526,83 @@ window.__ModuleLoader__.load({
             items.length === 0 && !hubBusy && hub?.error === undefined
               ? h('div', { className: 'dlm-quiet', style: { padding: '8px 0' } }, t('noResults'))
               : null,
-            items.slice(0, 20).map((item) =>
-              h(
+            items.slice(0, 20).map((item) => {
+              const open = details?.repo === item.repo
+              return h(
                 'div',
-                { className: 'dlm-row', key: item.repo },
+                { key: item.repo },
                 h(
                   'div',
-                  { className: 'dlm-row-main' },
-                  h('div', { className: 'dlm-name' }, item.repo),
-                  h('div', { className: 'dlm-meta' }, `${item.downloads.toLocaleString()} downloads${item.gated ? ` · ${t('gated')}` : ''}`),
-                ),
-                h(
-                  'div',
-                  { className: 'dlm-actions' },
-                  h('button', { type: 'button', className: 'dlm-btn', disabled: hubBusy || item.gated || pending !== '', onClick: () => void chooseRepo(item.repo) }, t('choose')),
-                ),
-              ),
-            ),
-          ),
-          hubPick !== null
-            ? h(
-                'div',
-                { className: 'dlm-note', style: { marginTop: '8px' } },
-                h('div', null, t('filesTitle', { repo: hubPick.repo, n: hubPick.files.length, license: hubPick.license })),
-                h(
-                  'div',
-                  { style: { display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' } },
-                  hubPick.files.slice(0, 4).map((file) =>
+                  { className: 'dlm-row' },
+                  h(
+                    'button',
+                    { type: 'button', className: 'dlm-row-main dlm-row-btn', onClick: () => void openDetails(item.repo), 'aria-expanded': open },
+                    h(
+                      'div',
+                      { className: 'dlm-name' },
+                      item.repo,
+                      fitChip(item.sizeBytes),
+                      capChips(item.capabilities, 'caps'),
+                    ),
+                    h(
+                      'div',
+                      { className: 'dlm-meta' },
+                      [
+                        item.sizeBytes > 0 ? formatBytes(item.sizeBytes) : '',
+                        `${item.downloads.toLocaleString()} downloads`,
+                        item.updated ? `updated ${String(item.updated).slice(0, 10)}` : '',
+                        item.gated ? t('gated') : '',
+                      ]
+                        .filter((part) => typeof part === 'string' && part.length > 0)
+                        .join(' · '),
+                    ),
+                  ),
+                  h(
+                    'div',
+                    { className: 'dlm-actions' },
                     h(
                       'button',
-                      { type: 'button', className: 'dlm-btn', key: file, disabled: downloading || pending !== '', onClick: () => void downloadFile(hubPick.repo, file) },
-                      file,
+                      { type: 'button', className: 'dlm-btn', disabled: hubBusy || item.gated || pending !== '', onClick: () => void chooseRepo(item.repo) },
+                      t('choose'),
                     ),
                   ),
                 ),
+                open && details !== null
+                  ? h(
+                      'div',
+                      { className: 'dlm-details' },
+                      h('span', { className: 'dlm-details-key' }, 'License'),
+                      h('span', null, details.license),
+                      h('span', { className: 'dlm-details-key' }, 'Updated'),
+                      h('span', null, String(details.updated || '').slice(0, 10) || 'unknown'),
+                      h('span', { className: 'dlm-details-key' }, 'Can do'),
+                      h('span', null, details.capabilities.length > 0 ? details.capabilities.join(' · ') : 'not declared by the repository'),
+                      h('span', { className: 'dlm-details-key' }, t('fit')),
+                      h('span', null, (fitOf(details.recommendedSize, system?.totalMemoryBytes, t) ?? { sentence: t('sizeUnknown') }).sentence),
+                      details.files.slice(0, 6).map((file) =>
+                        h(
+                          'div',
+                          { key: file.name, className: 'dlm-file-row' },
+                          h('span', { className: 'dlm-file-name' }, file.name),
+                          h('span', { className: 'dlm-file-size' }, formatBytes(file.size) || '?'),
+                          h(
+                            'button',
+                            {
+                              type: 'button',
+                              className: 'dlm-btn',
+                              disabled: downloading || pending !== '',
+                              onClick: () => void downloadFile(details.repo, file.name),
+                            },
+                            t('download'),
+                          ),
+                        ),
+                      ),
+                      h('div', { className: 'dlm-quiet' }, 'Capabilities are inferred from the repository name and tags; Hugging Face does not label every model.'),
+                    )
+                  : null,
               )
-            : null,
+            }),
+          ),
         )
       }
 
