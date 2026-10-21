@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "B-1001 Local Models",
+    "title": "B-1002 Local Models",
     "description": "A Local models card on the Models page: reads this computer's CPU, memory and disk, marks which open-source models fit, and installs the one you click."
   }
 }

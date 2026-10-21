@@ -1,0 +1,15 @@
+# B-1001 Local Engine — the built-in model runner.
+#
+# Runs llama.cpp inside a child process and serves an OpenAI-compatible
+# endpoint, so no Ollama (or any other engine) has to be installed.
+#
+# modelPath must point at a GGUF file on this machine. Leave it empty to mount
+# the plugin without starting an engine.
+- insert:
+    - id: b-1001-local-engine
+      name: '@ml-hub476/b-1001-local-engine'
+      config:
+        modelPath: '/Users/bing_macair_2026/.dsh/local-engine/models/qwen3-0.6b.gguf'
+        contextSize: 8192
+        displayName: 'Local (built-in)'
+        port: 18111

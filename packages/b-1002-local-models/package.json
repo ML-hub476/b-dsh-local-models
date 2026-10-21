@@ -1,8 +1,8 @@
 {
-  "name": "@ml-hub476/b-1001-local-models",
-  "version": "0.2.0",
+  "name": "@ml-hub476/b-1002-local-models",
+  "version": "0.3.0",
   "private": false,
-  "description": "B-1001 Local Models — a Models-page card that reads your computer's resources, matches open-source models to it, and installs the ones you click.",
+  "description": "B-1002 Local Models — a Models-page card that reads your computer's resources, matches open-source models to it, and installs the ones you click.",
   "type": "module",
   "main": "./index.js",
   "exports": {
@@ -21,7 +21,7 @@
     "locale/zh.json",
     "icon.svg"
   ],
-  "keywords": ["dsh", "dsh-plugin", "deepseek-harness", "local-models", "ollama", "b-1001"],
+  "keywords": ["dsh", "dsh-plugin", "deepseek-harness", "local-models", "ollama", "b-1002"],
   "license": "MIT",
   "dsh": {
     "bundle": {

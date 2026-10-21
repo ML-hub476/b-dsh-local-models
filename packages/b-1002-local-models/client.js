@@ -1,12 +1,12 @@
 window.__ModuleLoader__.load({
-  id: '@ml-hub476/b-1001-local-models',
+  id: '@ml-hub476/b-1002-local-models',
   factory(require) {
     const React = require('react')
     const h = React.createElement
     const { useCallback, useEffect, useState } = React
 
-    const PACKAGE_ID = 'B-1001'
-    const SLOT_ID = 'b-1001-local-models'
+    const PACKAGE_ID = 'B-1002'
+    const SLOT_ID = 'b-1002-local-models'
 
     /** Built-in copy; the locale service may override it when registered. */
     const COPY = {
@@ -65,6 +65,10 @@ window.__ModuleLoader__.load({
         description: 'About',
         notChat: 'Not chat models',
         unknown: 'unknown',
+        sizeUnknown: 'Size unknown',
+        cloudOnly: 'Runs on ollama.com',
+        cloudNote: 'This model runs on ollama.com, not on this computer. It needs an Ollama account sign-in, so there is no local fit verdict and nothing to download here.',
+        cloud: 'Cloud',
       },
       zh: {
         title: '本地模型',
@@ -121,6 +125,10 @@ window.__ModuleLoader__.load({
         description: '简介',
         notChat: '非对话模型',
         unknown: '未知',
+        cloud: '云端',
+        sizeUnknown: '大小未知',
+        cloudOnly: '在 ollama.com 上运行',
+        cloudNote: '这个模型在 ollama.com 上运行，不占用本机资源，需要登录 Ollama 账号，因此没有本机适配判断，也不会有本地下载。',
       },
     }
 
@@ -129,8 +137,8 @@ window.__ModuleLoader__.load({
       const locale = typeof ctx.get === 'function' ? ctx.get('locale') : undefined
       if (locale !== undefined && locale !== null) {
         try {
-          ctx.effect(() => locale.register('localModels', 'en', COPY.en), 'b-1001: en copy')
-          ctx.effect(() => locale.register('localModels', 'zh', COPY.zh), 'b-1001: zh copy')
+          ctx.effect(() => locale.register('localModels', 'en', COPY.en), 'b-1002: en copy')
+          ctx.effect(() => locale.register('localModels', 'zh', COPY.zh), 'b-1002: zh copy')
         } catch {
           // The built-in dictionary below is enough.
         }
@@ -248,6 +256,8 @@ window.__ModuleLoader__.load({
       .dlm-fit-good { background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 16%, transparent); color: var(--dsw-alias-state-success-primary); }
       .dlm-fit-tight { background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 18%, transparent); color: var(--dsw-alias-state-warn-primary); }
       .dlm-fit-big { background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent); color: var(--dsw-alias-state-error-primary); }
+      .dlm-fit-cloud { background: color-mix(in srgb, var(--dsw-alias-state-idle-primary) 22%, transparent); color: var(--dsw-alias-label-secondary); }
+      .dlm-fit-unknown { background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary); }
       .dlm-badge { padding: 0 6px; border-radius: 5px; background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 16%, transparent); color: var(--dsw-alias-state-success-primary); font-size: 11px; line-height: 17px; margin-left: 6px; }
       .dlm-actions { display: flex; align-items: center; gap: 8px; flex: none; }
       .dlm-details { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 8px 0 2px; padding: 10px 12px; border-radius: 9px; background: var(--dsw-alias-bg-layer-2); font-size: 12px; line-height: 1.5; }
@@ -380,9 +390,15 @@ window.__ModuleLoader__.load({
       const isDefault = (tag) => state?.default?.provider === 'local' && state.default?.model === tag
       const showJobStrip = job !== null && job.finishedAt !== null && job.finishedAt > dismissed && job.status !== 'running'
 
-      const fitBadge = (sizeGB) => {
+      /**
+       * A verdict for every row. A cloud model has no local size at all, and a
+       * local model the search page did not size still needs a visible state —
+       * silence there looked like a bug.
+       */
+      const fitBadge = (sizeGB, cloud) => {
+        if (cloud === true) return h('span', { className: 'dlm-fit dlm-fit-cloud' }, t('cloud'))
         const fit = fitOf(sizeGB, totalMemoryBytes, t)
-        if (fit === null) return null
+        if (fit === null) return h('span', { className: 'dlm-fit dlm-fit-unknown' }, t('sizeUnknown'))
         return h('span', { className: `dlm-fit dlm-fit-${fit.level}` }, fit.label)
       }
 
@@ -602,7 +618,7 @@ window.__ModuleLoader__.load({
                       item.capabilities.length > 0
                         ? h('span', { className: 'dlm-chips' }, item.capabilities.slice(0, 3).map((value) => chip(value, value === 'tools')))
                         : null,
-                      fitBadge(item.approxGB),
+                      fitBadge(item.approxGB, item.cloudOnly === true),
                     ),
                     h(
                       'div',
@@ -615,7 +631,9 @@ window.__ModuleLoader__.load({
                   h(
                     'div',
                     { className: 'dlm-actions' },
-                    installedAlready
+                    item.cloudOnly === true
+                      ? h('span', { className: 'dlm-quiet' }, t('cloudOnly'))
+                      : installedAlready
                       ? h('span', { className: 'dlm-quiet' }, t('downloaded'))
                       : h(
                           'button',
@@ -637,7 +655,7 @@ window.__ModuleLoader__.load({
                         item.capabilities.length > 0 ? { key: t('capabilities'), value: item.capabilities.join(' · ') } : null,
                         fitOf(item.approxGB, totalMemoryBytes, t) !== null ? { key: t('fit'), value: fitOf(item.approxGB, totalMemoryBytes, t).sentence } : null,
                       ],
-                      item.description,
+                      item.cloudOnly === true ? t('cloudNote') : item.description,
                     )
                   : null,
               )

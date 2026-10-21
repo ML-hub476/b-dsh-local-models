@@ -1,4 +1,4 @@
-# B-1001 · Local Models
+# B-1002 · Local Models
 
 A **Local models** card on **Settings → Models**. It reads what this computer has, marks which
 open-source models fit, downloads the one you click, and puts it in the model menu.
@@ -35,7 +35,7 @@ client.js          browser half: the card, in the settings.models.footer slot
 index.js           host half: /local-models/* on the existing Web server
 lib/ollama.js      Ollama HTTP client (version, tags, pull, delete)
 lib/catalog.js     ollama.com search page → catalog rows, cached per query
-cordis.patch.yml   inserts the single row `b-1001-local-models`
+cordis.patch.yml   inserts the single row `b-1002-local-models`
 ```
 
 - **No runtime dependencies** — Node's global `fetch`, the browser's `fetch`, and built-in
@@ -70,8 +70,8 @@ B-1002 will remove the Ollama requirement.
 ## Install & uninstall
 
 ```sh
-dsh plugin --profile desktop add /path/to/packages/b-1001-local-models
-dsh plugin --profile desktop remove @ml-hub476/b-1001-local-models
+dsh plugin --profile desktop add /path/to/packages/b-1002-local-models
+dsh plugin --profile desktop remove @ml-hub476/b-1002-local-models
 ```
 
 Removing the plugin leaves the downloaded models on disk. Delete the `local` provider from

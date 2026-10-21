@@ -10,6 +10,17 @@
     "type": "git",
     "url": "git+https://github.com/ML-hub476/b-dsh-local-models.git"
   },
-  "keywords": ["dsh-plugin", "deepseek-harness", "local-models", "ollama", "llama.cpp"],
-  "workspaces": ["packages/*"]
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "local-models",
+    "ollama",
+    "llama.cpp"
+  ],
+  "workspaces": [
+    "packages/*"
+  ],
+  "dependencies": {
+    "node-llama-cpp": "^3.22.2"
+  }
 }

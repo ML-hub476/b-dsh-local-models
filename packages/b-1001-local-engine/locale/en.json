@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "B-1001 Local Engine",
+    "description": "Runs a GGUF model in its own child process and serves an OpenAI-compatible endpoint, so the model menu works with no external engine installed."
+  }
+}

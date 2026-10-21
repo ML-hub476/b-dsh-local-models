@@ -8,8 +8,8 @@ plugin name in the Harness UI, in the README, and in the release tag.
 
 | Code | Package | What it is | State |
 |---|---|---|---|
-| **B-1001** | `@ml-hub476/b-1001-local-models` | The **Local models card** on Settings → Models: reads your CPU, memory and disk, marks which models fit, downloads with live progress, and makes them selectable in the model menu. | ✅ shipped |
-| **B-1002** | `@ml-hub476/b-1002-local-engine` | The **built-in engine**: runs a GGUF model itself, so a user needs no Ollama at all. | 🧱 next |
+| **B-1001** | `@ml-hub476/b-1001-local-engine` | The **built-in engine**: runs a GGUF model in its own child process and serves an OpenAI-compatible endpoint, so no Ollama or other engine has to be installed. | ✅ runs |
+| **B-1002** | `@ml-hub476/b-1002-local-models` | The **one-button card** on Settings → Models: reads your CPU, memory and disk, marks which models fit, downloads with live progress, and puts them in the model menu. | ✅ shipped |
 | **B-1003** | `@ml-hub476/b-1003-local-models-bundle` | The **one-click bundle** that switches on B-1001 and B-1002 together. | 🧱 next |
 
 Package names, titles and folder names all carry the same code, so a plugin row, a README
@@ -39,9 +39,8 @@ switches. It carries the heavier dependency, which is exactly why it is a separa
 
 ```
 packages/
-  b-1001-local-models/     the card (client + host halves, no runtime dependencies)
-  b-1002-local-engine/     the built-in engine (next)
-  b-1003-local-models-bundle/  the bundle that installs both (next)
+  b-1001-local-engine/     the built-in engine (llama.cpp in a child process)
+  b-1002-local-models/     the card (client + host halves, no runtime dependencies)
 ```
 
 ## License

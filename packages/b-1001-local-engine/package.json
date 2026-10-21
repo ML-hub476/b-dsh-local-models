@@ -1,0 +1,32 @@
+{
+  "name": "@ml-hub476/b-1001-local-engine",
+  "version": "0.1.0",
+  "private": false,
+  "description": "B-1001 Local Engine — runs a GGUF model inside a child process and serves an OpenAI-compatible endpoint, so the Harness needs no external engine.",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./worker": "./worker.mjs",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "worker.mjs",
+    "cordis.patch.yml",
+    "locale/en.json",
+    "locale/zh.json",
+    "icon.svg"
+  ],
+  "keywords": ["dsh", "dsh-plugin", "deepseek-harness", "llama.cpp", "gguf", "local-engine", "b-1001"],
+  "license": "MIT",
+  "dependencies": {
+    "node-llama-cpp": "^3.22.2"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

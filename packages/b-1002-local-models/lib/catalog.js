@@ -107,9 +107,13 @@ export function parseSearchPage(html) {
     }
     const capabilities = []
     const sizes = []
+    // ollama.com also publishes cloud-only models: they run on their servers,
+    // so they carry a size badge `cloud` and never a local download size.
+    let cloud = false
     for (const badge of badges) {
       const lower = badge.toLowerCase()
-      if (CAPABILITY_BADGES.includes(lower) && !capabilities.includes(lower)) capabilities.push(lower)
+      if (lower === 'cloud') cloud = true
+      else if (CAPABILITY_BADGES.includes(lower) && !capabilities.includes(lower)) capabilities.push(lower)
       else if (SIZE_BADGE.test(lower) && !sizes.includes(lower)) sizes.push(lower)
     }
     items.push({
@@ -117,6 +121,11 @@ export function parseSearchPage(html) {
       description,
       capabilities,
       sizes,
+      // The cloud badge alone means "a cloud tag exists too" — gemma4 publishes
+      // both local sizes and cloud tags. Only a badge with no sizes at all is a
+      // model you cannot run on this machine.
+      cloud,
+      cloudOnly: cloud && sizes.length === 0,
       approxGB: approximateGB(sizes[0]),
     })
   }
