@@ -14,8 +14,10 @@
  *
  * The ready line on stdout is `READY <port>`.
  */
+import { appendFileSync } from 'node:fs'
 import http from 'node:http'
-import { basename } from 'node:path'
+import { homedir } from 'node:os'
+import { basename, join } from 'node:path'
 
 import { getLlama, LlamaChatSession } from 'node-llama-cpp'
 
@@ -23,6 +25,16 @@ const modelPath = process.env.B1001_MODEL_PATH
 const contextSize = Number(process.env.B1001_CONTEXT ?? 4096) || 4096
 const requestedPort = Number(process.env.B1001_PORT ?? 0)
 const modelName = process.env.B1001_NAME ?? (modelPath ? basename(modelPath) : 'local')
+
+/** One line per request, so a failed turn can be explained afterwards. */
+const LOG_FILE = join(homedir(), '.dsh', 'local-engine', 'engine.log')
+function log(line) {
+  try {
+    appendFileSync(LOG_FILE, `${new Date().toISOString()} ${line}\n`)
+  } catch {
+    /* logging must never break a request */
+  }
+}
 
 if (typeof modelPath !== 'string' || modelPath.length === 0) {
   process.stderr.write('B1001_MODEL_PATH is required\n')
@@ -136,6 +148,9 @@ const server = http.createServer(async (request, response) => {
     return sendJson(response, 400, { error: { message: String(error.message) } })
   }
 
+  const requestChars = JSON.stringify(body.messages ?? []).length
+  const toolCount = Array.isArray(body.tools) ? body.tools.length : 0
+  log(`REQ messages=${(body.messages ?? []).length} chars=${requestChars} tools=${toolCount} stream=${body.stream === true}`)
   const { history, prompt } = splitMessages(body.messages)
   if (prompt.length === 0) {
     return sendJson(response, 400, { error: { message: 'The last message must be a user message with text.' } })
@@ -161,11 +176,15 @@ const server = http.createServer(async (request, response) => {
             choices: [{ index: 0, delta, finish_reason: finish ?? null }],
           })}\n\n`
         response.write(frame({ role: 'assistant' }))
+        let chars = 0
+        const started = Date.now()
         await session.prompt(prompt, {
           onTextChunk(chunk) {
+            chars += chunk.length
             if (chunk.length > 0) response.write(frame({ content: chunk }))
           },
         })
+        log(`DONE chars=${chars} ms=${Date.now() - started}`)
         response.write(frame({}, 'stop'))
         response.write('data: [DONE]\n\n')
         response.end()
@@ -181,6 +200,7 @@ const server = http.createServer(async (request, response) => {
       })
     })
   } catch (error) {
+    log(`ERR ${String(error?.message ?? error).slice(0, 400)}`)
     if (!response.headersSent) return sendJson(response, 500, { error: { message: String(error?.message ?? error) } })
     response.end()
   }
