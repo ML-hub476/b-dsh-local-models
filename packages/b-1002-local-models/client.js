@@ -237,6 +237,12 @@ window.__ModuleLoader__.load({
       .dlm-pick-label { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: 5px; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 16%, transparent); color: var(--dsw-alias-brand-primary); font-size: 11px; font-weight: 600; line-height: 18px; }
       .dlm-readme { padding: 10px 12px; border-radius: 9px; background: var(--dsw-alias-bg-base); }
       .dlm-readme-text { font-size: 12px; line-height: 1.6; color: var(--dsw-alias-label-secondary); white-space: pre-wrap; max-height: 260px; overflow: auto; }
+      .dlm-sortbar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+      .dlm-sort { padding: 3px 9px; border-radius: 999px; border: 1px solid var(--dsw-alias-border-l1); background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 11.5px; cursor: pointer; }
+      .dlm-sort:hover { background: var(--dsw-alias-bg-layer-2); }
+      .dlm-sort-on { border-color: transparent; background: color-mix(in srgb, var(--dsw-alias-brand-primary) 16%, transparent); color: var(--dsw-alias-brand-primary); font-weight: 600; }
+      .dlm-sort-arrow { font-size: 11px; }
+      .dlm-pinned { display: flex; flex-direction: column; gap: 2px; padding: 6px 10px; border-radius: 9px; background: var(--dsw-alias-bg-layer-2); }
       .dlm-select { padding: 4px 8px; border-radius: 7px; border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font: inherit; font-size: 11.5px; text-transform: none; letter-spacing: 0; }
       .dlm-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; vertical-align: middle; }
       .dlm-chip { padding: 0 6px; border-radius: 5px; background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary); font-size: 11px; line-height: 17px; }
@@ -260,7 +266,8 @@ window.__ModuleLoader__.load({
       const [hubBusy, setHubBusy] = useState(true)
       const [hubPick, setHubPick] = useState(null)
       const [details, setDetails] = useState(null)
-      const [sortBy, setSortBy] = useState('fit')
+      const [sortKey, setSortKey] = useState('recommended')
+      const [sortDir, setSortDir] = useState('desc')
       const [job, setJob] = useState(null)
       const [pending, setPending] = useState('')
       const [error, setError] = useState('')
@@ -469,13 +476,62 @@ window.__ModuleLoader__.load({
         return fit === null ? 3 : fit.level === 'good' ? 0 : fit.level === 'tight' ? 1 : 2
       }
 
+      const SORTS = [
+        { key: 'recommended', label: 'Best for me', dir: 'desc' },
+        { key: 'trending', label: 'Trending', dir: 'desc' },
+        { key: 'likes', label: 'Likes', dir: 'desc' },
+        { key: 'downloads', label: 'Downloads', dir: 'desc' },
+        { key: 'created', label: 'Newest', dir: 'desc' },
+        { key: 'updated', label: 'Updated', dir: 'desc' },
+        { key: 'params', label: 'Params', dir: 'desc' },
+      ]
+
+      /** Downloads per day since publication — our stand-in for "trending". */
+      const trendOf = (item) => {
+        const created = Date.parse(item.created)
+        if (!Number.isFinite(created)) return item.downloads
+        const days = Math.max(1, (Date.now() - created) / 86400000)
+        return item.downloads / days
+      }
+
+      const valueOf = (item) => {
+        if (sortKey === 'trending') return trendOf(item)
+        if (sortKey === 'likes') return item.likes
+        if (sortKey === 'downloads') return item.downloads
+        if (sortKey === 'created') return Date.parse(item.created) || 0
+        if (sortKey === 'updated') return Date.parse(item.updated) || 0
+        if (sortKey === 'params') return item.paramsB
+        return 0
+      }
+
       const sortItems = (items) => {
         const copy = items.slice()
-        if (sortBy === 'updated') copy.sort((a, b) => String(b.updated).localeCompare(String(a.updated)))
-        else if (sortBy === 'downloads') copy.sort((a, b) => b.downloads - a.downloads)
-        else if (sortBy === 'name') copy.sort((a, b) => a.repo.localeCompare(b.repo))
-        else copy.sort((a, b) => fitLevel(a.sizeBytes) - fitLevel(b.sizeBytes) || String(b.updated).localeCompare(String(a.updated)))
-        return copy
+        if (sortKey === 'recommended') {
+          copy.sort((a, b) => fitLevel(a.sizeBytes) - fitLevel(b.sizeBytes) || String(b.updated).localeCompare(String(a.updated)))
+          return copy
+        }
+        copy.sort((a, b) => valueOf(a) - valueOf(b))
+        return sortDir === 'asc' ? copy : copy.reverse()
+      }
+
+      const chooseSort = (sort) => {
+        if (sortKey === sort.key) {
+          setSortDir((current) => (current === 'asc' ? 'desc' : 'asc'))
+          return
+        }
+        setSortKey(sort.key)
+        setSortDir(sort.dir)
+      }
+
+      /** The two models a first-time user should see before anything else. */
+      const pinnedPicks = (items) => {
+        const sized = items.filter((item) => item.sizeBytes > 0)
+        if (sized.length === 0) return []
+        const quick = [...sized].sort((a, b) => a.sizeBytes - b.sizeBytes)[0]
+        const good = sized.filter((item) => fitLevel(item.sizeBytes) === 0).sort((a, b) => b.sizeBytes - a.sizeBytes)[0]
+        const picks = [{ label: 'Quick test', item: quick }]
+        if (good !== undefined && good.repo !== quick.repo) picks.push({ label: 'Best for this computer', item: good })
+        return picks
       }
 
       const openDetails = async (repo) => {
@@ -615,18 +671,23 @@ window.__ModuleLoader__.load({
             'div',
             { className: 'dlm-section-title' },
             h('span', null, t('searchTitle')),
-            h(
-              'select',
-              {
-                className: 'dlm-select',
-                value: sortBy,
-                onChange: (event) => setSortBy(event.target.value),
-                'aria-label': 'Sort models',
-              },
-              h('option', { value: 'fit' }, 'Best for this computer'),
-              h('option', { value: 'updated' }, 'Recently updated'),
-              h('option', { value: 'downloads' }, 'Most downloaded'),
-              h('option', { value: 'name' }, 'Name A–Z'),
+          ),
+          h(
+            'div',
+            { className: 'dlm-sortbar' },
+            SORTS.map((sort) =>
+              h(
+                'button',
+                {
+                  type: 'button',
+                  key: sort.key,
+                  className: sortKey === sort.key ? 'dlm-sort dlm-sort-on' : 'dlm-sort',
+                  onClick: () => chooseSort(sort),
+                  title: 'Click again to reverse the order',
+                },
+                sort.label,
+                sortKey === sort.key ? h('span', { className: 'dlm-sort-arrow' }, sortDir === 'asc' ? ' ↑' : ' ↓') : null,
+              ),
             ),
           ),
           h(
@@ -642,6 +703,36 @@ window.__ModuleLoader__.load({
             }),
           ),
           hub?.error !== undefined ? h('div', { className: 'dlm-note dlm-note-warn', style: { marginTop: '8px' } }, `${t('searchFailed')}: ${hub.error}`) : null,
+          sortKey === 'recommended'
+            ? h(
+                'div',
+                { className: 'dlm-pinned' },
+                pinnedPicks(items).map((pick) =>
+                  h(
+                    'div',
+                    { className: 'dlm-row dlm-pick', key: pick.item.repo },
+                    h(
+                      'button',
+                      { type: 'button', className: 'dlm-row-main dlm-row-btn', onClick: () => void openDetails(pick.item.repo) },
+                      h(
+                        'div',
+                        { className: 'dlm-name' },
+                        h('span', { className: 'dlm-pick-label' }, pick.label),
+                        pick.item.repo,
+                        fitChip(pick.item.sizeBytes),
+                        capChips(pick.item.capabilities, 'pin-caps'),
+                      ),
+                      h('div', { className: 'dlm-meta' }, [formatBytes(pick.item.sizeBytes), `${pick.item.paramsB}B`, `${pick.item.likes.toLocaleString()} likes`].filter((part) => part.length > 0).join(' · ')),
+                    ),
+                    h(
+                      'div',
+                      { className: 'dlm-actions' },
+                      h('button', { type: 'button', className: 'dlm-btn', disabled: hubBusy || pending !== '', onClick: () => void chooseRepo(pick.item.repo) }, 'Choose'),
+                    ),
+                  ),
+                ),
+              )
+            : null,
           h(
             'div',
             { className: 'dlm-scroll', style: { marginTop: '4px' } },

@@ -36,7 +36,7 @@ function quantOf(name) {
 /** Search GGUF repositories, most downloaded first. */
 export async function searchModels(query, limit = 24) {
   const text = String(query ?? '').trim().slice(0, 80)
-  const url = `${HF}/api/models?search=${encodeURIComponent(text)}&filter=gguf&sort=downloads&direction=-1&limit=${limit}&expand[]=lastModified&expand[]=tags`
+  const url = `${HF}/api/models?search=${encodeURIComponent(text)}&filter=gguf&sort=downloads&direction=-1&limit=${limit}&expand[]=lastModified&expand[]=tags&expand[]=createdAt&expand[]=likes`
   const response = await fetch(url, {
     headers: { accept: 'application/json', 'user-agent': 'b-1001-local-engine/0.1.0' },
     signal: AbortSignal.timeout(15000),
@@ -49,6 +49,9 @@ export async function searchModels(query, limit = 24) {
     return {
       repo,
       downloads: typeof row.downloads === 'number' ? row.downloads : 0,
+      likes: typeof row.likes === 'number' ? row.likes : 0,
+      created: String(row.createdAt ?? ''),
+      paramsB: paramsBOf(repo),
       updated: String(row.lastModified ?? ''),
       gated: row.gated === true || row.gated === 'auto' || row.gated === 'manual',
       capabilities: capabilitiesOf(repo, tags),
@@ -71,13 +74,25 @@ export async function searchModels(query, limit = 24) {
 
 /** Capabilities Hugging Face does not label, inferred from name and tags. */
 export function capabilitiesOf(repo, tags = []) {
-  const haystack = `${repo} ${tags.join(' ')}`.toLowerCase()
+  const text = `${repo} ${tags.join(' ')}`.toLowerCase()
   const found = []
-  if (/image-text-to-text|image-to-text|visual-question|vision|\bvl\b|llava|minicpm-v/.test(haystack)) found.push('vision')
-  if (/tool|function-call|agent/.test(haystack)) found.push('tools')
-  if (/reason|think|r1-|distill|chain-of-thought|\br1\b/.test(haystack)) found.push('reasoning')
-  if (/code|coder/.test(haystack)) found.push('code')
-  return found
+  if (/image-text-to-text|image-to-text|visual-question-answering|any-to-any|image-feature-extraction/.test(text)) found.push('vision')
+  if (/\b(vl|llava|pixtral|minicpm-v|internvl|gemma-?3|gemma-?4|qwen2\.5-vl|qwen3-vl|molmo|idefics|smolvlm)\b/.test(text)) found.push('vision')
+  if (/function-calling|tool-calling|\btools\b|\bagent\b|agentic/.test(text)) found.push('tools')
+  if (/reasoning|reasoner|\bthink|chain-of-thought|\bqwq\b|\br1\b|distill|deepseek-r/.test(text)) found.push('reasoning')
+  if (/\bcode|coder|codestral|devstral/.test(text)) found.push('code')
+  return [...new Set(found)]
+}
+
+/** Parameter count in billions, for sorting. Handles 8x7B. */
+export function paramsBOf(repo) {
+  const name = String(repo).split('/').pop() ?? ''
+  const moe = /(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*[bB]/.exec(name)
+  if (moe !== null) return Number(moe[1]) * Number(moe[2])
+  const single = /(\d+(?:\.\d+)?)\s*[bB](?![a-zA-Z])/.exec(name)
+  if (single !== null) return Number(single[1])
+  const small = /(\d+(?:\.\d+)?)\s*[mM](?![a-zA-Z])/.exec(name)
+  return small === null ? 0 : Number(small[1]) / 1000
 }
 
 function licenseOf(tags) {
