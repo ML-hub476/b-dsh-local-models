@@ -50,6 +50,11 @@ npm install -g pnpm       # 装完仍然找不到的话：
 
 再运行一次 `pnpm -v`，能看到版本号才继续。
 
+> **为什么需要这一步？** DeepSeek Harness 的 GitHub 仓库推荐用 `npx @deepseek-ai/dsh web` 运行。
+> npm 只带来 Node 和 npx，**不带 pnpm**，而插件安装器会直接调用 `pnpm`。
+> **桌面版**自带 pnpm，所以只有用 npm / GitHub 这种方式运行时才需要你自己装。
+> 这不是说明写错了。
+
 ### 1. 取得本仓库
 
 ```sh

@@ -51,6 +51,11 @@ npm install -g pnpm       # then if it is still not found:
 
 Run `pnpm -v` again; it must print a version before you continue.
 
+> **Why is this needed?** The DeepSeek Harness GitHub repository tells you to run it with
+> `npx @deepseek-ai/dsh web`. npm brings Node and npx, but it does not bring pnpm — and the plugin
+> installer calls `pnpm` directly. The **desktop app** ships its own pnpm, so this step only appears
+> when you run Harness the npm / GitHub way. It is not a mistake in the instructions.
+
 ### 1. Get this repository
 
 ```sh
