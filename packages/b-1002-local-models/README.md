@@ -1,7 +1,6 @@
-**English** | [简体中文](README.zh.md)
-
 # B-1002 · Local Models
 
+**English** | [简体中文](README.zh.md)
 The card on **Settings → Models**. It is the face of B-1001: your engine's status, the models it
 owns, a Hugging Face search box, and what this computer can run.
 

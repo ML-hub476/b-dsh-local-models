@@ -1,7 +1,6 @@
-[English](README.md) | **简体中文**
-
 # B-1001 · 本地引擎
 
+[English](README.md) | **简体中文**
 在 Hugging Face 上查找 GGUF 模型，下载到自己的目录，在子进程中运行，并提供 OpenAI 兼容接口，
 Harness 可以像任何其他服务商一样接入。无需任何外部依赖。
 

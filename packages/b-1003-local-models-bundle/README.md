@@ -1,7 +1,6 @@
-**English** | [简体中文](README.zh.md)
-
 # B-1003 · Local Models Bundle
 
+**English** | [简体中文](README.zh.md)
 One install for the whole family: this package owns the rows of **B-1001** and **B-1002** and
 depends on both of them.
 
