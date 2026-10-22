@@ -9,6 +9,9 @@ window.__ModuleLoader__.load({
     const SLOT_ID = 'b-1002-local-models'
     const GB = 1073741824
 
+    /** A 101 MB model that answers, for a first "does this work" test. */
+    const MICRO_REPO = 'unsloth/SmolLM2-135M-Instruct-GGUF'
+
     const COPY = {
       en: {
         title: 'Local models',
@@ -431,7 +434,28 @@ window.__ModuleLoader__.load({
           null,
           h('div', { className: 'dlm-section-title' }, h('span', null, t('shelf'))),
           models.length === 0
-            ? h('div', { className: 'dlm-quiet', style: { marginTop: '6px' } }, t('shelfEmpty'))
+            ? h(
+                'div',
+                { className: 'dlm-note', style: { marginTop: '6px' } },
+                h('div', null, t('shelfEmpty')),
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: 'dlm-btn dlm-btn-primary',
+                    style: { marginTop: '8px' },
+                    disabled: downloading || pending !== '',
+                    onClick: () =>
+                      void guard('micro', async () => {
+                        const detail = await engineApi('GET', `/hub/detail?repo=${encodeURIComponent(MICRO_REPO)}`)
+                        const value = await engineApi('POST', '/hub/download', { repo: detail.repo, file: detail.recommended })
+                        setJob(value.job ?? null)
+                      }),
+                  },
+                  'Download the 101 MB test model',
+                ),
+                h('div', { className: 'dlm-quiet', style: { marginTop: '6px' } }, 'SmolLM2-135M. Answers slowly and cannot use tools — it is only there to prove the engine runs.'),
+              )
             : models.map((model) =>
                 h(
                   'div',
@@ -527,7 +551,8 @@ window.__ModuleLoader__.load({
       const pinnedPicks = (items) => {
         const sized = items.filter((item) => item.sizeBytes > 0)
         if (sized.length === 0) return []
-        const quick = [...sized].sort((a, b) => a.sizeBytes - b.sizeBytes)[0]
+        const micro = sized.filter((item) => item.sizeBytes <= 200 * 1048576).sort((a, b) => a.sizeBytes - b.sizeBytes)
+        const quick = (micro.length > 0 ? micro : [...sized].sort((a, b) => a.sizeBytes - b.sizeBytes))[0]
         const good = sized.filter((item) => fitLevel(item.sizeBytes) === 0).sort((a, b) => b.sizeBytes - a.sizeBytes)[0]
         const picks = [{ label: 'Quick test', item: quick }]
         if (good !== undefined && good.repo !== quick.repo) picks.push({ label: 'Best for this computer', item: good })
