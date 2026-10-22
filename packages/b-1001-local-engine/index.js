@@ -8,7 +8,7 @@
  * exactly like Ollama.
  */
 import { spawn } from 'node:child_process'
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { readdir, statfs } from 'node:fs/promises'
 import os, { homedir } from 'node:os'
 import { basename, delimiter, dirname, join } from 'node:path'
@@ -25,6 +25,9 @@ const MAX_TOKENS = 4096
 /** A fixed port keeps a written model-menu route valid across restarts. */
 const DEFAULT_PORT = 18111
 
+/** Remembers the model last chosen, so a restart comes back to it. */
+const STATE_FILE = join(homedir(), '.dsh', 'local-engine', 'state.json')
+
 /** Credential name the engine route refers to; the value is never checked. */
 const CREDENTIAL_REF = 'LOCAL_BUILTIN_API_KEY'
 
@@ -39,6 +42,32 @@ export function apply(ctx, config) {
   const displayName =
     typeof config?.displayName === 'string' && config.displayName.length > 0 ? config.displayName : 'Local (built-in)'
   let modelName = modelPath.length > 0 ? basename(modelPath) : ''
+
+  function loadSavedModel() {
+    try {
+      const saved = JSON.parse(readFileSync(STATE_FILE, 'utf8'))
+      return typeof saved?.modelPath === 'string' ? saved.modelPath : ''
+    } catch {
+      return ''
+    }
+  }
+
+  function saveModel(next) {
+    try {
+      mkdirSync(dirname(STATE_FILE), { recursive: true })
+      writeFileSync(STATE_FILE, JSON.stringify({ modelPath: next }, null, 2))
+    } catch {
+      /* a read-only home still runs, it just forgets the choice */
+    }
+  }
+
+  if (modelPath.length === 0) {
+    const saved = loadSavedModel()
+    if (saved.length > 0 && existsSync(saved)) {
+      modelPath = saved
+      modelName = basename(saved)
+    }
+  }
 
   const state = {
     sync: null,
@@ -100,21 +129,21 @@ export function apply(ctx, config) {
       .entries()
       .find((c) => c?.options?.id === 'llm-pi-ai' || c?.options?.name === '@deepseek-ai/dsh-llm-pi-ai')
     if (entry === undefined) return { ok: false, reason: 'no-pi-ai-route' }
-    const running = state.status === 'running' && state.port > 0
+    const hasModel = state.model.length > 0
     try {
       await editor.edit(entry, (current, inherited) => {
         const providers = { ...(inherited?.providers ?? {}), ...(current?.providers ?? {}) }
         // Ollama is no longer part of this product: remove the route an older
         // version wrote, but only when it still points at Ollama.
         if (providers.local?.baseURL === 'http://127.0.0.1:11434/v1') delete providers.local
-        if (!running) {
+        if (!hasModel) {
           delete providers[PROVIDER_ID]
         } else {
           providers[PROVIDER_ID] = {
             displayName,
             api: 'openai-completions',
             apiKeyEnv: CREDENTIAL_REF,
-            baseURL: `http://127.0.0.1:${state.port}/v1`,
+            baseURL: `http://127.0.0.1:${port}/v1`,
             models: [
               {
                 id: state.model,
@@ -288,6 +317,7 @@ export function apply(ctx, config) {
     state.missing = ''
     state.error = ''
     state.sync = null
+    saveModel(next)
     return start()
   }
 
