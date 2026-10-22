@@ -17,9 +17,17 @@
     "cordis.patch.yml",
     "locale/en.json",
     "locale/zh.json",
-    "icon.svg"
+    "icon.svg",
+    "LICENSE"
   ],
-  "keywords": ["dsh", "dsh-plugin", "deepseek-harness", "local-models", "ollama", "b-1002"],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "local-models",
+    "ollama",
+    "b-1002"
+  ],
   "license": "MIT",
   "dsh": {
     "bundle": {
@@ -29,5 +37,15 @@
       "platform": "web",
       "immediately": true
     }
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ML-hub476/b-dsh-local-models.git",
+    "directory": "packages/b-1002-local-models"
+  },
+  "homepage": "https://github.com/ML-hub476/b-dsh-local-models#readme",
+  "bugs": {
+    "url": "https://github.com/ML-hub476/b-dsh-local-models/issues"
+  },
+  "author": "Bing Dai"
 }

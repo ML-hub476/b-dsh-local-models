@@ -1,10 +1,12 @@
 # B · Local Models Kit for DeepSeek Harness
 
-Run open-source models on your own machine: find one on Hugging Face, download it, click it in the
+**English** | [简体中文](README.zh.md)
+
+Run open-source models on your own machine: find one on Hugging Face, download it, pick it in the
 model menu. No external engine to install.
 
-Every package carries a **B-code**. The code is the label — it shows in the plugin name in the
-Harness UI, in the README and in the release tag.
+Every package carries a **B-code**. The code is the label — it shows in the plugin name inside the
+Harness UI, in the README, and in the release tag.
 
 | Code | Package | What it is |
 |---|---|---|
@@ -14,13 +16,27 @@ Harness UI, in the README and in the release tag.
 
 ## Install
 
-One package:
-
 ```sh
-dsh plugin --profile desktop add <path-or-package>
+dsh plugin --profile desktop add <path-to-package>
 ```
 
-Or the whole family at once with **B-1003**, which owns both rows.
+Install **B-1003** to get the whole family in one step.
+
+## Usage
+
+1. Open **Settings → Models**.
+2. Search a model on Hugging Face, for example `qwen3`.
+3. Open it, choose **Quality**, **Balanced** or **Compact**, and download.
+4. Press **Use**, then pick the model in the chat box under **Local (built-in)**.
+
+## How fit marks are worked out
+
+```
+need = file size × 1.2 + 1.5 GB        (weights + context + overhead)
+need ≤ 70% of memory  → Fits well
+need ≤ 90% of memory  → Tight fit
+otherwise             → Too big
+```
 
 ## Layout
 
@@ -31,16 +47,13 @@ packages/
   b-1003-local-models-bundle/   the bundle that installs both
 ```
 
-## 简体中文
+## Requirements
 
-运行开源模型：在 Hugging Face 上查找、下载到本机，然后在模型菜单里选用。无需安装任何外部引擎。
-
-| 编号 | 包 | 作用 |
-|---|---|---|
-| **B-1001** | `@ml-hub476/b-1001-local-engine` | 引擎：搜索 Hugging Face、把 GGUF 下载到 `~/.dsh/local-engine/models`、在子进程中运行并提供 OpenAI 兼容接口。 |
-| **B-1002** | `@ml-hub476/b-1002-local-models` | “设置 → 模型”页上的卡片：引擎状态、模型列表、Hugging Face 搜索、本机配置、适配标记，以及类似 LM Studio 的详情页（三个推荐下载）。 |
-| **B-1003** | `@ml-hub476/b-1003-local-models-bundle` | 套件：一次性安装 B-1001 与 B-1002。 |
+- DeepSeek Harness
+- Node.js 20 or newer on `PATH` — the engine runs llama.cpp in its own process
+- macOS, Linux or Windows; Apple silicon gets Metal acceleration
 
 ## License
 
-MIT © Bing Dai
+MIT — see [LICENSE](LICENSE).
+

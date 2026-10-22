@@ -2,7 +2,7 @@
   "name": "@ml-hub476/b-1003-local-models-bundle",
   "version": "0.1.0",
   "private": false,
-  "description": "B-1003 Local Models Bundle \u2014 installs B-1001 (engine) and B-1002 (card) together.",
+  "description": "B-1003 Local Models Bundle — installs B-1001 (engine) and B-1002 (card) together.",
   "type": "module",
   "main": "./index.js",
   "exports": {
@@ -15,7 +15,8 @@
     "cordis.patch.yml",
     "locale/en.json",
     "locale/zh.json",
-    "icon.svg"
+    "icon.svg",
+    "LICENSE"
   ],
   "keywords": [
     "dsh",
@@ -34,5 +35,15 @@
     "bundle": {
       "patch": "./cordis.patch.yml"
     }
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ML-hub476/b-dsh-local-models.git",
+    "directory": "packages/b-1003-local-models-bundle"
+  },
+  "homepage": "https://github.com/ML-hub476/b-dsh-local-models#readme",
+  "bugs": {
+    "url": "https://github.com/ML-hub476/b-dsh-local-models/issues"
+  },
+  "author": "Bing Dai"
 }

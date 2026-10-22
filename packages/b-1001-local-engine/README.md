@@ -1,3 +1,5 @@
+**English** | [简体中文](README.zh.md)
+
 # B-1001 · Local Engine
 
 Finds a GGUF model on Hugging Face, downloads it into its own folder, runs it in a child
