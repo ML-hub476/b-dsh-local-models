@@ -166,6 +166,7 @@ npx @deepseek-ai/dsh plugin --profile web add @ml-hub476/b-1003-local-models-bun
 | 引擎一直没变成 **Running** | 先确认 `node -v` 是 20 以上；并且必须先下载一个模型。 |
 | 回答很慢、电脑卡 | 换 **Compact**，或者选更小的模型。 |
 | 装完看不到插件 | 按第 5 步重启；再核对第 3 步的 profile 名字。 |
+| `cd: no such file or directory` | 你不在克隆下来的那个文件夹里。先 `cd ~`，或用 `find ~ -maxdepth 4 -type d -name "*local-models*"` 找出它在哪；用 ZIP 下载解压的话，文件夹通常叫 `b-dsh-local-models-main`。 |
 
 ---
 

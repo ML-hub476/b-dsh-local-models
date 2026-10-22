@@ -169,6 +169,7 @@ The three suggestions on each model page mean:
 | Engine never says **Running** | Check `node -v` is 20+. A model has to be downloaded before the engine can start. |
 | Model answers slowly, computer swaps | Pick **Compact**, or choose a smaller model. |
 | Plugin not listed after install | Restart the app (step 5); check the profile name in step 3. |
+| `cd: no such file or directory` | You are in the wrong folder. Run `cd ~` first, or find the clone with `find ~ -maxdepth 4 -type d -name "*local-models*"`. A ZIP download is usually named `b-dsh-local-models-main`. |
 
 ---
 
