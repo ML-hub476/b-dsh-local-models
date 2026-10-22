@@ -16,11 +16,25 @@ Harness UI, in the README, and in the release tag.
 
 ## Install
 
+You need **one thing**: the folder address (the "path") of a package on your computer.
+
+1. Download this project (**Code** → **Download ZIP**), then unzip it. Or clone it with git.
+2. Open the `packages` folder inside it. Pick **`b-1003-local-models-bundle`** — that one installs
+   everything.
+3. Copy that folder's path and run:
+
 ```sh
-dsh plugin --profile desktop add <path-to-package>
+dsh plugin --profile desktop add "/Users/YOUR-NAME/Downloads/b-dsh-local-models-main/packages/b-1003-local-models-bundle"
 ```
 
-Install **B-1003** to get the whole family in one step.
+Replace the part in quotes with your own path.
+
+**How to copy a path on macOS:** right-click the folder in Finder, hold `Option`, then choose
+**Copy "…" as Pathname**. On Windows: hold `Shift`, right-click the folder, choose
+**Copy as path**.
+
+> A "path" is just the address of a folder, written out: `卷/文件夹/子文件夹`, separated by `/`.
+> If you see `/Users/…/packages/b-1003-local-models-bundle`, you have the right folder.
 
 ## Usage
 

@@ -36,3 +36,5 @@ Harness 自带的是经过加固运行时的 Node（带 Apple 签名），macOS 
 ## 许可
 
 MIT © Bing Dai
+
+详细步骤（含怎么找到路径）见[根目录 README](../../README.zh.md#安装)。

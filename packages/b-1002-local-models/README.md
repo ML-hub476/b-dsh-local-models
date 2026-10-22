@@ -35,3 +35,5 @@ dsh plugin --profile desktop add /path/to/packages/b-1002-local-models
 ## License
 
 MIT © Bing Dai
+
+See the [root README](../../README.md#install) for the step-by-step version, including how to find the path.

@@ -31,10 +31,12 @@ B-1002 自身没有 Host 状态、没有依赖，所有请求都发给 B-1001 �
 ## 安装
 
 ```sh
-dsh plugin --profile desktop add <b-1001-local-engine 的路径>
-dsh plugin --profile desktop add <b-1002-local-models 的路径>
+dsh plugin --profile desktop add "/Users/YOUR-NAME/Downloads/b-dsh-local-models-main/packages/b-1002-local-models"
+dsh plugin --profile desktop add "/Users/YOUR-NAME/Downloads/b-dsh-local-models-main/packages/b-1002-local-models"
 ```
 
 ## 许可
 
 MIT © Bing Dai
+
+详细步骤（含怎么找到路径）见[根目录 README](../../README.zh.md#安装)。

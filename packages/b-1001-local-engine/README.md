@@ -39,3 +39,5 @@ crash away from your session.
 ## License
 
 MIT © Bing Dai
+
+See the [root README](../../README.md#install) for the step-by-step version, including how to find the path.

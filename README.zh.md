@@ -14,11 +14,23 @@
 
 ## 安装
 
+你只需要一样东西：某个包文件夹在电脑上的**地址（路径）**。
+
+1. 下载这个项目（点绿色 **Code** → **Download ZIP**），然后解压；或者用 git 克隆。
+2. 打开里面的 `packages` 文件夹，选 **`b-1003-local-models-bundle`**——装它一个就够了。
+3. 复制这个文件夹的路径，然后运行：
+
 ```sh
-dsh plugin --profile desktop add <包的路径>
+dsh plugin --profile desktop add "/Users/你的名字/Downloads/b-dsh-local-models-main/packages/b-1003-local-models-bundle"
 ```
 
-安装 **B-1003** 即可一次装好整套。
+把引号里的部分换成你自己的路径。
+
+**macOS 怎么复制路径：** 在访达里右键这个文件夹，按住 `Option`，选 **拷贝"…"为路径名**。
+Windows：按住 `Shift` 右键文件夹，选 **复制为路径**。
+
+> 所谓"路径"就是文件夹的地址，用 `/` 一层层写出来：`磁盘/文件夹/子文件夹`。
+> 如果你看到的是 `/Users/…/packages/b-1003-local-models-bundle`，那就对了。
 
 ## 使用
 

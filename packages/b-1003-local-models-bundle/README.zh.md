@@ -19,3 +19,5 @@ Harness 的行 id 必须唯一。如果 B-1001、B-1002 已经各自作为 bundl
 ## 许可
 
 MIT © Bing Dai
+
+详细步骤（含怎么找到路径）见[根目录 README](../../README.zh.md#安装)。

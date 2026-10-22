@@ -20,3 +20,5 @@ remove them first, then install B-1003 — otherwise the two sets of rows collid
 ## 许可
 
 MIT © Bing Dai
+
+See the [root README](../../README.md#install) for the step-by-step version, including how to find the path.
