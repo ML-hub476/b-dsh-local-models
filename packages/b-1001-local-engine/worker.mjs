@@ -183,7 +183,11 @@ const server = http.createServer(async (request, response) => {
 
   try {
     await serialized(async () => {
-      session.setChatHistory(history)
+      const transcript = [
+        ...history.map((turn) => `${turn.type === 'user' ? 'User' : 'Assistant'}: ${turn.text}`),
+        `User: ${prompt}`,
+        'Assistant:',
+      ].join('\n')
       const id = messageId()
       const created = Math.floor(Date.now() / 1000)
       if (body.stream === true) {
@@ -203,7 +207,7 @@ const server = http.createServer(async (request, response) => {
         response.write(frame({ role: 'assistant' }))
         let chars = 0
         const started = Date.now()
-        await session.prompt(prompt, {
+        await session.prompt(transcript, {
           onTextChunk(chunk) {
             chars += chunk.length
             if (chunk.length > 0) response.write(frame({ content: chunk }))
@@ -215,7 +219,7 @@ const server = http.createServer(async (request, response) => {
         response.end()
         return
       }
-      const text = await session.prompt(prompt)
+      const text = await session.prompt(transcript)
       sendJson(response, 200, {
         id,
         object: 'chat.completion',
