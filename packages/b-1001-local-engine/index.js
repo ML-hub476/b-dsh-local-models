@@ -11,7 +11,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
 import { readdir, statfs } from 'node:fs/promises'
 import os, { homedir } from 'node:os'
-import { basename, dirname, join } from 'node:path'
+import { basename, delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { downloadFile, listFiles, localName, modelDetail, modelPathFor, removeFile, searchModels } from './lib/hub.js'
@@ -57,18 +57,26 @@ export function apply(ctx, config) {
   function resolveNode() {
     const override = process.env.B1001_NODE
     if (typeof override === 'string' && override.length > 0 && existsSync(override)) return override
-    const path = process.env.PATH ?? ''
-    for (const dir of path.split(':')) {
+    const names = process.platform === 'win32' ? ['node.exe', 'node'] : ['node']
+    const fallbacks = []
+    for (const dir of (process.env.PATH ?? '').split(delimiter)) {
       if (dir.length === 0) continue
-      const candidate = join(dir, 'node')
-      if (candidate === process.execPath) continue
-      try {
-        if (existsSync(candidate) && statSync(candidate).mode & 0o111) return candidate
-      } catch {
-        /* unreadable PATH entry */
+      for (const name of names) {
+        const candidate = join(dir, name)
+        try {
+          if (!existsSync(candidate) || (statSync(candidate).mode & 0o111) === 0) continue
+          // Prefer a Node other than the one running Harness: the bundled one is
+          // code-signed and macOS refuses third-party native addons in it.
+          if (candidate === process.execPath) fallbacks.push(candidate)
+          else return candidate
+        } catch {
+          /* unreadable PATH entry */
+        }
       }
     }
-    return ''
+    // When `npx @deepseek-ai/dsh web` is the only Node on PATH, it is this one.
+    if (fallbacks.length > 0) return fallbacks[0]
+    return existsSync(process.execPath) ? process.execPath : ''
   }
 
   /** Point the model menu at the running worker. */
