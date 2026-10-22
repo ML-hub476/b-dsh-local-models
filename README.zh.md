@@ -112,6 +112,30 @@ npx @deepseek-ai/dsh web
 
 ---
 
+## 更新到新版本
+
+如果插件是从本仓库文件夹安装的：
+
+```sh
+cd b-dsh-local-models     # 你克隆下来的那个文件夹
+git pull
+```
+
+然后重启应用（`Ctrl+C`，再运行 `npx @deepseek-ai/dsh web`）。插件直接从这个文件夹运行，
+所以拉一次代码就够了，不需要重新安装。
+
+查看当前版本：
+
+```sh
+npx @deepseek-ai/dsh plugin --profile web list
+```
+
+如果以后发布到 npm，更新方式与安装时相同：
+
+```sh
+npx @deepseek-ai/dsh plugin --profile web add @ml-hub476/b-1003-local-models-bundle@latest
+```
+
 ## 适配标记怎么算
 
 ```

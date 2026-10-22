@@ -115,6 +115,30 @@ npx @deepseek-ai/dsh web
 
 ---
 
+## Update to a newer version
+
+If you installed the plugin from this repository folder:
+
+```sh
+cd b-dsh-local-models     # the folder you cloned
+git pull
+```
+
+Then restart the app (`Ctrl+C`, then `npx @deepseek-ai/dsh web`). The plugin runs straight from
+that folder, so a pull is all it takes — there is no package to reinstall.
+
+Check which version you are running:
+
+```sh
+npx @deepseek-ai/dsh plugin --profile web list
+```
+
+If a future version is published to npm, update it the same way you installed it:
+
+```sh
+npx @deepseek-ai/dsh plugin --profile web add @ml-hub476/b-1003-local-models-bundle@latest
+```
+
 ## How the fit marks work
 
 ```
