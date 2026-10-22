@@ -1,10 +1,9 @@
 # B-1001 · Local Engine
 
-The engine that replaces Ollama. It finds a GGUF model on Hugging Face, downloads it into its
-own folder, runs it in a child process, and serves an OpenAI-compatible endpoint that the
-Harness reaches like any other provider.
+Finds a GGUF model on Hugging Face, downloads it into its own folder, runs it in a child
+process, and serves an OpenAI-compatible endpoint the Harness reaches like any provider.
 
-Nothing external is required: no Ollama, no LM Studio, no python.
+Nothing external is required.
 
 ## What it does
 

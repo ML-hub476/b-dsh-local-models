@@ -1,0 +1,38 @@
+{
+  "name": "@ml-hub476/b-1003-local-models-bundle",
+  "version": "0.1.0",
+  "private": false,
+  "description": "B-1003 Local Models Bundle \u2014 installs B-1001 (engine) and B-1002 (card) together.",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "locale/en.json",
+    "locale/zh.json",
+    "icon.svg"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "local-models",
+    "bundle",
+    "b-1003"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@ml-hub476/b-1001-local-engine": "file:../b-1001-local-engine",
+    "@ml-hub476/b-1002-local-models": "file:../b-1002-local-models"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "B-1003 Local Models Bundle",
+    "description": "Installs B-1001 (the engine) and B-1002 (the card on Settings \u2192 Models) together, as one plugin."
+  }
+}

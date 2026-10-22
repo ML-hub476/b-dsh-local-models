@@ -12,7 +12,7 @@ window.__ModuleLoader__.load({
     const COPY = {
       en: {
         title: 'Local models',
-        subtitle: 'Your own engine: find a model on Hugging Face, download it, and run it here. No Ollama needed.',
+        subtitle: 'Your own engine: find a model on Hugging Face, download it, and run it here.',
         systemTitle: 'This computer',
         cores: '{n} cores',
         memory: 'Memory',
@@ -57,7 +57,7 @@ window.__ModuleLoader__.load({
       },
       zh: {
         title: '本地模型',
-        subtitle: '你自己的引擎：在 Hugging Face 上找模型、下载到本机并运行。不需要 Ollama。',
+        subtitle: '你自己的引擎：在 Hugging Face 上找模型、下载到本机并运行。',
         systemTitle: '这台电脑',
         cores: '{n} 核',
         memory: '内存',

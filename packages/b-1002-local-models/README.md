@@ -3,8 +3,7 @@
 The card on **Settings → Models**. It is the face of B-1001: your engine's status, the models it
 owns, a Hugging Face search box, and what this computer can run.
 
-No Ollama. B-1002 has no host state and no dependencies — every call goes to `/local-engine/*`
-on B-1001.
+B-1002 has no host state and no dependencies — every call goes to `/local-engine/*` on B-1001.
 
 ## What the card shows
 

@@ -1,0 +1,14 @@
+# B-1003 Local Models Bundle — one install for the whole family.
+#
+# Inserting the rows here is what makes one install enough: this package owns
+# the rows, and its dependencies are the two plugins themselves.
+- insert:
+    - id: b-1001-local-engine
+      name: '@ml-hub476/b-1001-local-engine'
+      config:
+        modelPath: ''
+        contextSize: 8192
+        displayName: 'Local (built-in)'
+        port: 18111
+    - id: b-1002-local-models
+      name: '@ml-hub476/b-1002-local-models'
