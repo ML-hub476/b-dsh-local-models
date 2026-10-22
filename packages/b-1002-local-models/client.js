@@ -420,7 +420,17 @@ window.__ModuleLoader__.load({
           h(
             'div',
             { style: { display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' } },
-            h('button', { type: 'button', className: 'dlm-btn', disabled: pending !== '', onClick: () => void startStop() }, running ? t('stop') : t('start')),
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'dlm-btn',
+                disabled: pending !== '' || (!running && engine.missing === 'no-model'),
+                title: engine.missing === 'no-model' ? 'Download a model first — the engine needs one to load' : undefined,
+                onClick: () => void startStop(),
+              },
+              running ? t('stop') : t('start'),
+            ),
             running
               ? h('button', { type: 'button', className: 'dlm-btn dlm-btn-primary', disabled: pending !== '', onClick: () => void makeDefault() }, t('makeDefault'))
               : null,

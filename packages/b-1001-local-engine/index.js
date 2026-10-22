@@ -146,7 +146,7 @@ export function apply(ctx, config) {
   function start() {
     if (state.status === 'running') return Promise.resolve(view())
     if (state.missing === 'no-model') {
-      state.error = 'Set modelPath in the plugin configuration to a .gguf file.'
+      state.error = 'No model yet. Download one in the model list, then press Use.'
       return Promise.resolve(view())
     }
     if (state.missing === 'model-not-found') {
