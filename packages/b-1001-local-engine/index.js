@@ -25,6 +25,9 @@ const MAX_TOKENS = 4096
 /** A fixed port keeps a written model-menu route valid across restarts. */
 const DEFAULT_PORT = 18111
 
+/** Credential name the engine route refers to; the value is never checked. */
+const CREDENTIAL_REF = 'LOCAL_BUILTIN_API_KEY'
+
 /** Where the engine keeps the models it downloaded itself. */
 const MODEL_DIR = join(homedir(), '.dsh', 'local-engine', 'models')
 
@@ -81,6 +84,16 @@ export function apply(ctx, config) {
 
   /** Point the model menu at the running worker. */
   async function syncProvider() {
+    // pi-ai refuses a hand-declared route without a credential, so store a
+    // placeholder key once; the engine ignores the value.
+    const credentials = ctx.get('credentials')
+    if (credentials !== undefined) {
+      try {
+        await credentials.set(CREDENTIAL_REF, 'b-1001-local-engine')
+      } catch {
+        /* the store may be read-only; the route still needs apiKeyEnv below */
+      }
+    }
     const editor = ctx.get('configEditor')
     if (editor === undefined) return { ok: false, reason: 'no-config-editor' }
     const entry = editor
@@ -100,6 +113,7 @@ export function apply(ctx, config) {
           providers[PROVIDER_ID] = {
             displayName,
             api: 'openai-completions',
+            apiKeyEnv: CREDENTIAL_REF,
             baseURL: `http://127.0.0.1:${state.port}/v1`,
             models: [
               {
