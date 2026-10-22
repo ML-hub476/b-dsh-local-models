@@ -9,9 +9,6 @@ window.__ModuleLoader__.load({
     const SLOT_ID = 'b-1002-local-models'
     const GB = 1073741824
 
-    /** A 101 MB model that answers, for a first "does this work" test. */
-    const MICRO_REPO = 'unsloth/SmolLM2-135M-Instruct-GGUF'
-
     /** The smallest model that still chats usefully; the sensible DSH test. */
     const TEST_REPO = 'unsloth/Qwen3-0.6B-GGUF'
 
@@ -459,23 +456,8 @@ window.__ModuleLoader__.load({
                     },
                     'Download Qwen3-0.6B (378 MB)',
                   ),
-                  h(
-                    'button',
-                    {
-                      type: 'button',
-                      className: 'dlm-btn',
-                      disabled: downloading || pending !== '',
-                      onClick: () =>
-                        void guard('micro', async () => {
-                          const detail = await engineApi('GET', `/hub/detail?repo=${encodeURIComponent(MICRO_REPO)}`)
-                          const value = await engineApi('POST', '/hub/download', { repo: detail.repo, file: detail.recommended })
-                          setJob(value.job ?? null)
-                        }),
-                    },
-                    'Or the 101 MB test model',
-                  ),
                 ),
-                h('div', { className: 'dlm-quiet', style: { marginTop: '6px' } }, 'Qwen3-0.6B answers and follows simple instructions, which is enough to exercise DSH. The 101 MB model only proves the engine runs.'),
+                h('div', { className: 'dlm-quiet', style: { marginTop: '6px' } }, 'Qwen3-0.6B answers and follows simple instructions, which is enough to exercise DSH.'),
               )
             : models.map((model) =>
                 h(
