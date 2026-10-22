@@ -12,6 +12,9 @@ window.__ModuleLoader__.load({
     /** A 101 MB model that answers, for a first "does this work" test. */
     const MICRO_REPO = 'unsloth/SmolLM2-135M-Instruct-GGUF'
 
+    /** The smallest model that still chats usefully; the sensible DSH test. */
+    const TEST_REPO = 'unsloth/Qwen3-0.6B-GGUF'
+
     const COPY = {
       en: {
         title: 'Local models',
@@ -439,22 +442,40 @@ window.__ModuleLoader__.load({
                 { className: 'dlm-note', style: { marginTop: '6px' } },
                 h('div', null, t('shelfEmpty')),
                 h(
-                  'button',
-                  {
-                    type: 'button',
-                    className: 'dlm-btn dlm-btn-primary',
-                    style: { marginTop: '8px' },
-                    disabled: downloading || pending !== '',
-                    onClick: () =>
-                      void guard('micro', async () => {
-                        const detail = await engineApi('GET', `/hub/detail?repo=${encodeURIComponent(MICRO_REPO)}`)
-                        const value = await engineApi('POST', '/hub/download', { repo: detail.repo, file: detail.recommended })
-                        setJob(value.job ?? null)
-                      }),
-                  },
-                  'Download the 101 MB test model',
+                  'div',
+                  { style: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' } },
+                  h(
+                    'button',
+                    {
+                      type: 'button',
+                      className: 'dlm-btn dlm-btn-primary',
+                      disabled: downloading || pending !== '',
+                      onClick: () =>
+                        void guard('test', async () => {
+                          const detail = await engineApi('GET', `/hub/detail?repo=${encodeURIComponent(TEST_REPO)}`)
+                          const value = await engineApi('POST', '/hub/download', { repo: detail.repo, file: detail.recommended })
+                          setJob(value.job ?? null)
+                        }),
+                    },
+                    'Download Qwen3-0.6B (378 MB)',
+                  ),
+                  h(
+                    'button',
+                    {
+                      type: 'button',
+                      className: 'dlm-btn',
+                      disabled: downloading || pending !== '',
+                      onClick: () =>
+                        void guard('micro', async () => {
+                          const detail = await engineApi('GET', `/hub/detail?repo=${encodeURIComponent(MICRO_REPO)}`)
+                          const value = await engineApi('POST', '/hub/download', { repo: detail.repo, file: detail.recommended })
+                          setJob(value.job ?? null)
+                        }),
+                    },
+                    'Or the 101 MB test model',
+                  ),
                 ),
-                h('div', { className: 'dlm-quiet', style: { marginTop: '6px' } }, 'SmolLM2-135M. Answers slowly and cannot use tools — it is only there to prove the engine runs.'),
+                h('div', { className: 'dlm-quiet', style: { marginTop: '6px' } }, 'Qwen3-0.6B answers and follows simple instructions, which is enough to exercise DSH. The 101 MB model only proves the engine runs.'),
               )
             : models.map((model) =>
                 h(
