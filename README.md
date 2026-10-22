@@ -30,6 +30,27 @@ node -v
 If that prints `v20`, `v22`, `v24` or newer, you are fine. If it prints nothing, install Node from
 <https://nodejs.org> and open a new terminal.
 
+### 0b. You also need `pnpm`
+
+The installer uses pnpm to add plugins. Check it:
+
+```sh
+pnpm -v
+```
+
+If that says *command not found*, install it — any one of these works:
+
+```sh
+corepack enable pnpm      # comes with Node 16.13+, nothing to download
+# or
+brew install pnpm         # macOS with Homebrew
+# or
+npm install -g pnpm       # then if it is still not found:
+# echo 'export PATH="$(npm prefix -g)/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
+```
+
+Run `pnpm -v` again; it must print a version before you continue.
+
 ### 1. Get this repository
 
 ```sh
@@ -113,6 +134,7 @@ The three suggestions on each model page mean:
 | What you see | What to do |
 |---|---|
 | `zsh: command not found: dsh` | There is no global `dsh` command. Use `npx @deepseek-ai/dsh …` instead. |
+| `pnpm was not found: install pnpm and make it available on PATH` | Install pnpm: `corepack enable pnpm`, or `brew install pnpm`, or `npm install -g pnpm`. Confirm with `pnpm -v`. |
 | `Cannot find package 'node-llama-cpp'` | Step 2 was skipped. Run `npm install node-llama-cpp` in the repository folder. |
 | Engine says *error*, message mentions **code signature** or **Team IDs** | Your Node is the official signed build. Install a different one: `brew install node`, then start with `B1001_NODE=/opt/homebrew/bin/node npx @deepseek-ai/dsh web`. |
 | Engine never says **Running** | Check `node -v` is 20+. A model has to be downloaded before the engine can start. |

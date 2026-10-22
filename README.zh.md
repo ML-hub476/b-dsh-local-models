@@ -29,6 +29,27 @@ node -v
 
 显示 `v20`、`v22`、`v24` 或更新就没问题。如果没有显示，去 <https://nodejs.org> 安装，然后重开一个终端。
 
+### 0b. 还需要 `pnpm`
+
+安装插件时用的是 pnpm。先确认：
+
+```sh
+pnpm -v
+```
+
+如果提示 *command not found*，任选一种方式装：
+
+```sh
+corepack enable pnpm      # Node 16.13+ 自带，不用下载
+# 或者
+brew install pnpm         # macOS 且有 Homebrew
+# 或者
+npm install -g pnpm       # 装完仍然找不到的话：
+# echo 'export PATH="$(npm prefix -g)/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
+```
+
+再运行一次 `pnpm -v`，能看到版本号才继续。
+
 ### 1. 取得本仓库
 
 ```sh
@@ -110,6 +131,7 @@ npx @deepseek-ai/dsh web
 | 你看到的 | 怎么办 |
 |---|---|
 | `zsh: command not found: dsh` | 没有全局 `dsh` 命令是正常的，改用 `npx @deepseek-ai/dsh …`。 |
+| `pnpm was not found` | 装 pnpm：`corepack enable pnpm`，或 `brew install pnpm`，或 `npm install -g pnpm`。用 `pnpm -v` 确认。 |
 | `Cannot find package 'node-llama-cpp'` | 第 2 步没做。在仓库文件夹里运行 `npm install node-llama-cpp`。 |
 | 引擎报错，里面出现 **code signature** 或 **Team IDs** | 你的 Node 是苹果签名的官方版。改用一个：`brew install node`，然后 `B1001_NODE=/opt/homebrew/bin/node npx @deepseek-ai/dsh web` 启动。 |
 | 引擎一直没变成 **Running** | 先确认 `node -v` 是 20 以上；并且必须先下载一个模型。 |
