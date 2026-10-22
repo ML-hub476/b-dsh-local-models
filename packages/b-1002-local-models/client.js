@@ -568,15 +568,26 @@ window.__ModuleLoader__.load({
         setSortDir(sort.dir)
       }
 
-      /** The two models a first-time user should see before anything else. */
+      /**
+       * The two rows above the list: always the same starter, plus whatever the
+       * current results say is the best model that fits this computer.
+       */
       const pinnedPicks = (items) => {
-        const sized = items.filter((item) => item.sizeBytes > 0)
-        if (sized.length === 0) return []
-        const micro = sized.filter((item) => item.sizeBytes <= 200 * 1048576).sort((a, b) => a.sizeBytes - b.sizeBytes)
-        const quick = (micro.length > 0 ? micro : [...sized].sort((a, b) => a.sizeBytes - b.sizeBytes))[0]
+        const starterFromResults = items.find((item) => item.repo.toLowerCase() === TEST_REPO.toLowerCase())
+        const starter = starterFromResults ?? {
+          repo: TEST_REPO,
+          sizeBytes: 378 * 1048576,
+          paramsB: 0.6,
+          likes: 0,
+          downloads: 0,
+          capabilities: [],
+          updated: '',
+          created: '',
+        }
+        const picks = [{ label: 'Start here', item: starter }]
+        const sized = items.filter((item) => item.sizeBytes > 0 && item.repo.toLowerCase() !== TEST_REPO.toLowerCase())
         const good = sized.filter((item) => fitLevel(item.sizeBytes) === 0).sort((a, b) => b.sizeBytes - a.sizeBytes)[0]
-        const picks = [{ label: 'Quick test', item: quick }]
-        if (good !== undefined && good.repo !== quick.repo) picks.push({ label: 'Best for this computer', item: good })
+        if (good !== undefined) picks.push({ label: 'Best for this computer', item: good })
         return picks
       }
 
