@@ -28,6 +28,9 @@ const DEFAULT_PORT = 18111
 /** Remembers the model last chosen, so a restart comes back to it. */
 const STATE_FILE = join(homedir(), '.dsh', 'local-engine', 'state.json')
 
+/** What the last request looked like, written by the worker. */
+const USAGE_FILE = join(homedir(), '.dsh', 'local-engine', 'last-request.json')
+
 /** Credential name the engine route refers to; the value is never checked. */
 const CREDENTIAL_REF = 'LOCAL_BUILTIN_API_KEY'
 
@@ -287,6 +290,25 @@ export function apply(ctx, config) {
     })
   }
 
+  function usageFacts() {
+    let usage = null
+    try {
+      usage = JSON.parse(readFileSync(USAGE_FILE, 'utf8'))
+    } catch {
+      usage = null
+    }
+    const match = /(\d+(?:\.\d+)?)\s*[bB](?![a-zA-Z])/.exec(state.model)
+    const paramsB = match === null ? 0 : Number(match[1])
+    let verdict = 'unknown'
+    if (paramsB > 0) {
+      // DSH sends a large system prompt plus every tool schema on each request.
+      if (usage !== null && usage.chars > 6000 && paramsB < 4) verdict = 'too-small'
+      else if (paramsB < 2) verdict = 'small'
+      else verdict = 'ok'
+    }
+    return { usage, paramsB, verdict }
+  }
+
   function view() {
     return {
       status: state.status,
@@ -301,6 +323,7 @@ export function apply(ctx, config) {
       error: state.error,
       missing: state.missing,
       sync: state.sync,
+      ...usageFacts(),
       modelDir: MODEL_DIR,
     }
   }

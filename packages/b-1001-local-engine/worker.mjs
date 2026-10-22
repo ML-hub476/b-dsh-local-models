@@ -14,7 +14,7 @@
  *
  * The ready line on stdout is `READY <port>`.
  */
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, writeFileSync } from 'node:fs'
 import http from 'node:http'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
@@ -28,6 +28,7 @@ const modelName = process.env.B1001_NAME ?? (modelPath ? basename(modelPath) : '
 
 /** One line per request, so a failed turn can be explained afterwards. */
 const LOG_FILE = join(homedir(), '.dsh', 'local-engine', 'engine.log')
+const USAGE_FILE = join(homedir(), '.dsh', 'local-engine', 'last-request.json')
 function log(line) {
   try {
     appendFileSync(LOG_FILE, `${new Date().toISOString()} ${line}\n`)
@@ -176,6 +177,11 @@ const server = http.createServer(async (request, response) => {
   const requestChars = JSON.stringify(body.messages ?? []).length
   const toolCount = Array.isArray(body.tools) ? body.tools.length : 0
   log(`REQ messages=${(body.messages ?? []).length} chars=${requestChars} tools=${toolCount} stream=${body.stream === true}`)
+  try {
+    writeFileSync(USAGE_FILE, JSON.stringify({ chars: requestChars, tools: toolCount, at: Date.now() }))
+  } catch {
+    /* usage facts are optional */
+  }
   const { history, prompt } = splitMessages(body.messages)
   if (prompt.length === 0) {
     return sendJson(response, 400, { error: { message: 'The last message must be a user message with text.' } })

@@ -860,6 +860,25 @@ window.__ModuleLoader__.load({
         error.length > 0 ? h('div', { className: 'dlm-note dlm-note-bad' }, error) : null,
         notice.length > 0 ? h('div', { className: 'dlm-note' }, notice) : null,
         enginePanel(),
+        engine !== null && engine.verdict === 'too-small'
+          ? h(
+              'div',
+              { className: 'dlm-note dlm-note-warn' },
+              h('div', null, `This model is probably too small for the Harness prompt.`),
+              h(
+                'div',
+                { className: 'dlm-quiet', style: { marginTop: '4px' } },
+                `${engine.model} is about ${engine.paramsB}B parameters, while the last request carried ${Math.round((engine.usage?.chars ?? 0) / 1000)}k characters of instructions and ${engine.usage?.tools ?? 0} tools. Expect short, unreliable answers. A 4B model or larger fixes this.`,
+              ),
+            )
+          : null,
+        engine !== null && engine.verdict === 'small'
+          ? h(
+              'div',
+              { className: 'dlm-note' },
+              h('div', { className: 'dlm-quiet' }, `${engine.model} is very small (${engine.paramsB}B). It proves the engine works, but answers will be shallow.`),
+            )
+          : null,
         systemStrip(),
         engine === null ? null : shelfBlock(),
         downloadPanel(),
