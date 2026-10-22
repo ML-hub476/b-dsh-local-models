@@ -57,21 +57,46 @@ function serialized(task) {
   return run
 }
 
-/** Turn OpenAI messages into a chat history plus the final user turn. */
+/**
+ * Turn OpenAI messages into a chat history plus the final user turn.
+ *
+ * DSH replays the whole session: this conversation arrived as 697 messages and
+ * 1.7 MB. Only the tail fits in a small context, and `LlamaChatSession` accepts
+ * user/model turns only, so system text is folded into the prompt instead.
+ */
 function splitMessages(messages) {
   const list = Array.isArray(messages) ? messages : []
-  const history = []
+  const system = []
+  const turns = []
   for (const message of list) {
     const role = String(message?.role ?? '')
     const text = contentToText(message?.content)
     if (text.length === 0) continue
-    if (role === 'assistant') history.push({ type: 'model', text })
-    else if (role === 'user') history.push({ type: 'user', text })
-    else if (role === 'system') history.push({ type: 'system', text })
+    if (role === 'system' || role === 'developer') system.push(text)
+    else if (role === 'user') turns.push({ type: 'user', text })
+    else if (role === 'assistant') turns.push({ type: 'model', text })
   }
-  const last = history.length > 0 ? history[history.length - 1] : null
-  if (last === null || last.type !== 'user') return { history, prompt: '' }
-  return { history: history.slice(0, -1), prompt: last.text }
+  const last = turns.length > 0 ? turns[turns.length - 1] : null
+  const lastIsUser = last !== null && last.type === 'user'
+  const prompt = lastIsUser ? last.text : ''
+  const history = lastIsUser ? turns.slice(0, -1) : turns
+
+  // Keep only what fits: the newest ten turns, at most twelve thousand characters.
+  const kept = []
+  let chars = 0
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    chars += history[index].text.length
+    if (kept.length >= 10 || chars > 12000) break
+    kept.unshift(history[index])
+  }
+
+  const instructions = system.length > 0 ? system[system.length - 1].slice(-6000) : ''
+  const first = kept[0]
+  if (instructions.length > 0 && first !== undefined && first.type === 'user') {
+    kept[0] = { type: 'user', text: `${instructions}\n\n${first.text}` }
+  }
+  const finalPrompt = instructions.length > 0 && kept.length === 0 ? `${instructions}\n\n${prompt}` : prompt
+  return { history: kept, prompt: finalPrompt }
 }
 
 function contentToText(content) {

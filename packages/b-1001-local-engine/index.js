@@ -157,7 +157,7 @@ export function apply(ctx, config) {
         }
         return { ...current, providers }
       })
-      state.sync = { ok: true, running }
+      state.sync = { ok: true, hasModel }
       return state.sync
     } catch (error) {
       state.sync = { ok: false, reason: 'write-failed', error: messageOf(error) }
